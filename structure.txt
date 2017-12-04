@@ -1,0 +1,3 @@
+load_window
+	solar_radiation
+		sun
