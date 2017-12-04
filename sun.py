@@ -1,7 +1,6 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 import numpy as np
-import matplotlib.pyplot as plt
 from my_math import *
 
 ## 计算全年的太阳方位角和高度角
@@ -27,11 +26,12 @@ def h_A(phi=35.68,L=139.77):
     sin_h = [sin_phi*sin_delta[i] + cos_phi*cos_delta[i]*np.cos(deg_to_rad(omega[i])) for i in range(8760)]
     h = rad_to_deg(np.arcsin(sin_h))
     cos_h = np.cos(np.arcsin(sin_h))
-
+    h[h<0] = 0  #太阳高度角小于0等于0
+    # print(h[5922])
     # 计算太阳方位角
     cos_A = [(sin_h[i]*sin_phi-sin_delta[i])/(cos_h[i]*cos_phi) for i in range(8760)]
     A = np.array([rad_to_deg(omega[i]/abs(omega[i])*np.arccos(cos_A[i])) for i in range(8760)])
-
+    #　print(A[5922])
     # 输出
     return [h,A]
 
