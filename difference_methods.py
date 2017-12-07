@@ -1,6 +1,7 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 import numpy as np
+import time
 
 def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
     # material 材料 wood concrete rock_wool中选，列表
@@ -64,7 +65,6 @@ def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
     ul = [dt / 0.5 / (cap[i] + cap[i + 1]) / r[i] for i in range(M + 1)]
     ur = [dt / 0.5 / (cap[i] + cap[i + 1]) / r[i + 1] for i in range(M + 1)]
     um = np.multiply(np.add(ul, ur), -1) + 1
-    print(ul,ur)
 
     # 温度计算
     t_out = []
@@ -120,13 +120,28 @@ dt = 60  # [s]
 t0 = 10
 t1 = 20
 t2 = 10
-time = 600
+time_length = 3600*8760
 
 ## 前进和后退的比较
-t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time, method="forward")
-print(t,q0,qm)
-t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time, method="backward")
-print(t,q0,qm)
+a1 = time.time()
+t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="forward")
+b1 = time.time()
+'''
+print(t)
+print(q0)
+print(qm)
+'''
+print(b1-a1)
+
+c1 = time.time()
+t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="backward")
+d1 = time.time()
+'''
+print(t)
+print(q0)
+print(qm)
+'''
+print(d1-c1)
 
 
 
