@@ -1,8 +1,8 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 import numpy as np
-import time
 
+## 求单纯的墙
 def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
     # material 材料 wood concrete rock_wool中选，列表
     # d 厚度，列表 [m]
@@ -22,9 +22,9 @@ def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
     material_lambda = {"wood": 0.19,
                        "concrete": 1.4,
                        "rock_wool": 0.042}
-    material_c_rho = {"wood": 716000,
-                      "concrete": 1934000,
-                      "rock_wool": 84000}
+    material_c_rho = {"wood": 716,
+                      "concrete": 1934,
+                      "rock_wool": 84}
 
     # 默认参数
     alpha0 = 9.3  # 内表面换热系数
@@ -39,7 +39,7 @@ def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
         for j in range(m[i]):
             dx.append(d[i] / m[i])
             dx_lambda.append(material_lambda[material[i]])
-            dx_c_rho.append(material_c_rho[material[i]])
+            dx_c_rho.append(1000*material_c_rho[material[i]])
     dx.append(0)
     dx_lambda.append(alpham)
     dx_c_rho.append(0)
@@ -116,34 +116,95 @@ def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
 material = ["wood", "concrete", "rock_wool"]
 d = [0.025, 0.12, 0.05]  # 厚度[m]
 m = [1, 2, 1]  # 网格划分数
-dt = 60  # [s]
+dt = 180  # [s]
 t0 = 10
 t1 = 20
 t2 = 10
-time_length = 3600*8760
-
+time_length = 1800
+'''
 ## 前进和后退的比较
-a1 = time.time()
 t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="forward")
-b1 = time.time()
-'''
 print(t)
 print(q0)
 print(qm)
-'''
-print(b1-a1)
-
-c1 = time.time()
 t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="backward")
-d1 = time.time()
-'''
 print(t)
 print(q0)
 print(qm)
 '''
-print(d1-c1)
+## 求 UX 矩阵
+def diff_ux(material, d, m, dt, alpha0, alpham):
+    # material 材料 wood concrete rock_wool中选，列表
+    # d 厚度，列表 [m]
+    # m 每种材质的分隔数量，列表
+    # dt 时间间隔 [s]
+    # alpha0 alpham 内外表面换热系数
 
+    # 材质库
+    material_lambda = {"concrete": 1.4,
+                       "wood": 0.19,
+                       "rock_wool": 0.042,
+                       "arumi": 210,
+                       "carpet": 0.08,
+                       "stonebodo": 0.17,
+                       "air":1}
+    material_c_rho = {"concrete": 1934,
+                      "wood":716,
+                      "rock_wool": 84,
+                      "arumi": 2373,
+                      "carpet": 318,
+                      "stonebodo": 1030,
+                      "air":1}
+    r_air = 0.086
 
+    # 网格尺寸，物性参数
+    M = sum(m)  # 网格总数
+    dx = [0]
+    dx_c_rho = [0]
+    dx_lambda = [alpha0]
+    for i in range(len(m)):
+        for j in range(m[i]):
+            dx.append(d[i] / m[i])
+            dx_lambda.append(material_lambda[material[i]])
+            dx_c_rho.append(1000*material_c_rho[material[i]])
+    dx.append(0)
+    dx_lambda.append(alpham)
+    dx_c_rho.append(0)
+    dx = np.array(dx)
+    dx_lambda = np.array(dx_lambda)
+    dx_c_rho = np.array(dx_c_rho)
 
+    # 计算R值
+    dx1 = dx
+    dx1[0] = dx1[-1] = 1
+    r = np.divide(dx1, dx_lambda)
+    r[r == 0] = r_air
 
+    # 计算CAP值
+    cap = np.multiply(dx_c_rho, dx)
+
+    # ul和ur的计算
+    ul = [dt / 0.5 / (cap[i] + cap[i + 1]) / r[i] for i in range(M + 1)]
+    ur = [dt / 0.5 / (cap[i] + cap[i + 1]) / r[i + 1] for i in range(M + 1)]
+
+    # 后退差分
+    # 计算逆矩阵
+    u = np.zeros((M+1, M+1))
+    for i in range(M):
+        u[i][i] = 1 + ul[i] + ur[i]
+        u[i + 1][i] = -ul[i+1]
+        u[i][i + 1] = -ur[i]
+    u[-1][-1] = 1 + ul[-1] + ur[-1]
+    u = np.matrix(u)
+    ux = np.array(u.I)
+
+    return ul, ur, ux
+'''
+A2_material = ["concrete", "rock_wool", "air", "arumi"]
+A2_d = [0.150, 0.050, 0, 0.002]
+A2_m = [7, 2, 1, 1]
+print(diff_ux(A2_material, A2_d, A2_m, 60, 9.3, 23))
+
+print(diff_ux(["wood", "concrete", "rock_wool"], [0.025, 0.120, 0.050], [1, 2, 1], 180, 9.3, 9.3))
+'''
 
