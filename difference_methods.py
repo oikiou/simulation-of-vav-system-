@@ -47,12 +47,12 @@ def diff_m(material, d, m, dt, t0, t1, t2, time, method="forward"):
     dx_lambda = np.array(dx_lambda)
     dx_c_rho = np.array(dx_c_rho)
 
-    # 计算R值
+    # 计算R值(热抵抗)
     dx1 = dx
     dx1[0] = dx1[-1] = 1
     r = np.divide(dx1, dx_lambda)
 
-    # 计算CAP值
+    # 计算CAP值(热容量)
     cap = np.multiply(dx_c_rho, dx)
 
     # 安定条件检测
@@ -121,7 +121,7 @@ t0 = 10
 t1 = 20
 t2 = 10
 time_length = 1800
-'''
+
 ## 前进和后退的比较
 t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="forward")
 print(t)
@@ -131,7 +131,7 @@ t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="backward")
 print(t)
 print(q0)
 print(qm)
-'''
+
 ## 求 UX 矩阵
 def diff_ux(material, d, m, dt, alpha0, alpham):
     # material 材料 wood concrete rock_wool中选，列表

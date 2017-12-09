@@ -1,3 +1,37 @@
 load_window
 	solar_radiation
 		sun
+
+1. 输入
+1.1 壁体(材料，厚度，朝向，面积，划分网格数)
+    计算后退差分的 UX, FI, FO, ARM, ANF, SDT, AR
+    计算反射率 Sn
+1.2 内扰(室容积，热容量，人员，照明，设备，隙风)
+    计算HGC HGR HLG
+1.3 时间间隔 日程表
+
+2. 边界条件的设定(一年份)
+2.1 气象数据(外气温度，湿度，直达日射，天空日射，长波放射) 小时到分钟
+2.2 日射取得热 QGA, QGT, 日射量 IW
+2.3 相当外气温度 Te (窗，外壁)
+
+3. 初始条件的设定
+TR, TN, Te (内壁，床，天井)
+
+4. 循环开始
+CF
+RS
+AFT
+CA
+BRM
+BRC
+BRMX
+BRCX
+TR
+XR
+
+5. 更新
+Tmrt
+Tn
+Tsn
+Qn

@@ -19,7 +19,7 @@ def load_window(indoor_temp, w_alpha, Ago, k=0.85, tau=0.48, Bn=0.12, K=4):
     #Bn = 0.12
     #K = 4.0
     # 直达日射 扩散日射 反射日射 夜间放射
-    [I_D, I_s, I_r, cos_theta, Fs, weather_data] = solar_radiation.solar_radiation(w_alpha)
+    [I_D, I_s, I_r, cos_theta, Fs, weather_data] = solar_radiation.solar_radiation_for_load_window(w_alpha)
     outdoor_temp = weather_data["outdoor_temp"]
     RN = weather_data["RN"]
     '''

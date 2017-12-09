@@ -10,7 +10,7 @@ from my_math import *
 # 读取 直达日射 天空日射 太阳高度 方位
 # 输出 在这个面上的 直达 扩散 反射 三个日射量
 
-def solar_radiation(w_alpha, w_beta=90):
+def solar_radiation_for_load_window(w_alpha, w_beta=90):
     # 朝向
     # w_alpha = 112.5  # 正南夹角
     # w_beta = 90  # 地面夹角
@@ -55,4 +55,6 @@ def solar_radiation(w_alpha, w_beta=90):
     #  print(I_dn[5922], I_sky[5922], I_hol[5922], I_d[5922], I_s[5922], I_r[5922])
     return [I_d, I_s, I_r, cos_theta, Fs, weather_data]
 
-
+def solar_radiation(w_alpha, w_beta=90):
+    [I_d, I_s, I_r, cos_theta, Fs, weather_data] = solar_radiation_for_load_window(w_alpha, w_beta)
+    return [I_d, I_s, I_r, cos_theta, Fs]

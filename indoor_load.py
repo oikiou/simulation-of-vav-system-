@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import difference_methods
+import readcsv
+import air
+import solar_radiation
+import load_window
+import matplotlib.pyplot as plt
 
 ## 热负荷计算programme
 
@@ -26,6 +31,7 @@ K1 = 6.4  # 热贯流率
 AG = 24  # 玻璃面积
 tau_TN = 0.79  # 综合透过率
 B_N = 0.04  # 吸收日射取得率
+epsilon = 0.9  # 放射
 # 外壁
 A2 = 22.4
 A2_material = ["concrete", "rock_wool", "air", "arumi"]
@@ -52,7 +58,7 @@ CPF = 3500
 
 # 1.3 外表面的方向余弦(参考表6.5)
 
-# 1.4 后退差分的ul, ur, ux计算
+# 1.4 后退差分的ul, ur, ux计算 调用difference_method
 A2_ul, A2_ur, A2_ux = difference_methods.diff_ux(A2_material, A2_d, A2_m, dt, alpha_i, alpha_o)
 A3_ul, A3_ur, A3_ux = difference_methods.diff_ux(A3_material, A3_d, A3_m, dt, alpha_i, alpha_i)
 A4_ul, A4_ur, A4_ux = difference_methods.diff_ux(A4_material, A4_d, A4_m, dt, alpha_i, alpha_i)
@@ -86,10 +92,10 @@ RMDTX = 1.2 * VOL / dt
 n_air = 0.2
 # 室内发热
 # 人体
-N_H = 16
-H_T = 119
-H_S24 = 62
-H_d = 4
+N_H = 16  # 在室人数
+H_T = 119  # 全放热量
+H_S24 = 62  # 24度的显热量
+H_d = 4  # 勾配
 # 照明
 W_LI = 2900
 # 机器
@@ -97,13 +103,47 @@ W_AS = 500
 W_AL = 0
 # 空调设定
 T_R_set = 26
+phi_R_set = 60
+# 气象数据
+weather_data = readcsv.weather()
+RN = weather_data["RN"]
+outdoor_temp = weather_data["outdoor_temp"]
 
+# 2.2 绝对湿度
+x_R_set = air.pw2x(air.t_phi2pw(T_R_set+273.15, phi_R_set))
 
+# 2.3 间隙风 [kg/s]
+Go = 1.2 * n_air * VOL / 3600
 
+# 2.4 室内发热
+# 人体
+H_s = H_S24 - H_d * (T_R_set - 24)
+H_l = H_T - H_s
+Q_HS = N_H * H_s
+Q_HL = N_H * H_l
+# 室内发热对流成分
+HG_c = 0.5 * Q_HS + 0.6 * W_LI + 0.6 * W_AS
+# 室内发热辐射成分
+HG_r = 0.5 * Q_HS + 0.4 * W_LI + 0.4 * W_AS
+# 潜热
+HLG = Q_HL + W_AL
 
+# 3. 初期値设定
+# 差分法的初期値
+T_R = T_R_set
 
+# 4. 边界条件设定 (全年！)
+# 4.3 日射量的计算
+# 窗
+[I_d, I_s, I_r, cos_theta, Fs] = solar_radiation.solar_radiation(w_alpha)
+[Q_GT, Q_GA, Q_GO] = load_window.load_window(26, w_alpha, AG, k=0.85, tau=tau_TN, Bn=B_N, K=K1)
+# Q_GO是没有用的，所以26度也无所谓
+I_w = I_d + I_s + I_r
 
-
+# 4.4 Ten的计算
+T_e_1 = Q_GA / A1 / K1 - (epsilon * Fs * RN) / alpha_o + outdoor_temp
+T_e_2 = (a_s * I_w - epsilon * Fs * RN) / alpha_o + outdoor_temp
+T_e_3 = 0.7 * T_R + 0.3 * outdoor_temp
 
 
 
