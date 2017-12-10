@@ -63,7 +63,7 @@ for i in range(face_n):
     face_ux.append(ux)
     # FI, FO
     FI.append(ux[0][0] * ul[0])
-    FO.append(ux[-1][-1] * ur[-1])
+    FO.append(ux[0][-1] * ur[-1])
     # 面积
     A.append(face[i][4])
 # ARM, ANF, SDT, AR, Sn
@@ -146,14 +146,14 @@ sche = [0] * 8 + [1] * 8 + [0] * 4  # 9-18
 sche_year = sche * 365
 
 # 3 初始条件的设定
-T_R = 5
+T_R = 10
 face_tn = []
 for i in range(face_n):
     tn = np.ones(np.array(face_ul[i]).shape) * T_R
     face_tn.append(tn)
 
 # 4 循环开始
-for step in range(10):
+for step in range(30):
     # HG_c
     # 人体
     H_s = H_S24 - H_d * (T_R - 24)
@@ -172,8 +172,6 @@ for step in range(10):
     for i in range(face_n):
         cf = np.dot(face_ux[i][0], face_tn[i])
         CF.append(cf)
-    #print(face_ux[0][0], face_tn[0])
-    #print(CF)
     # RSn
     RS = [Sn[i] * (Q_gt[step] + HG_r) / A[i] for i in range(face_t_n + face_n)]
 
@@ -187,18 +185,13 @@ for step in range(10):
         TE.append(0.7 * T_R + 0.3 * outdoor_temp[step])
     for i in range(face_up_down_wall_n):
         TE.append(T_R)
-    #print(A, FO, TE, FI, RS, CF)
     AFT = np.multiply(A, (np.multiply(FO, TE) + np.multiply(FI, np.divide(RS, alpha_i)) + CF))
-    #print(AFT)
     AFT = np.sum(AFT)
 
     # CA
     CA = Arm * alpha_i * kc * AFT / SDT
 
     # BRM
-    #print(Arm, alpha_i, kc, AFT, SDT)
-    #print(Arm, ANF, SDT, AR)
-    #print(RMDT, AR, 1005 * Go, RMDT * T_R, CA, 1005 * Go * outdoor_temp[step], HG_c)
     BRM = RMDT + AR + 1005 * Go
     BRC = RMDT * T_R + CA + 1005 * Go * outdoor_temp[step] + HG_c
 
@@ -209,13 +202,13 @@ for step in range(10):
     # 后处理
     # T_mrt
     T_mrt = (kc * ANF * T_R + AFT) / SDT
-    
+
     # Tn
     for i in range(4):
         face_tn[i][0] += face_ul[i][0] * T_R
         face_tn[i][-1] += face_ur[i][-1] * TE[i]
         face_tn[i] = np.dot(face_ux[i], face_tn[i])
-        # print(face_tn[i])
+
 
 
 
