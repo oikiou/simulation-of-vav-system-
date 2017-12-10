@@ -121,7 +121,7 @@ t0 = 10
 t1 = 20
 t2 = 10
 time_length = 1800
-
+'''
 ## 前进和后退的比较
 t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="forward")
 print(t)
@@ -131,7 +131,7 @@ t,q0,qm = diff_m(material, d, m, dt, t0, t1, t2, time_length, method="backward")
 print(t)
 print(q0)
 print(qm)
-
+'''
 ## 求 UX 矩阵
 def diff_ux(material, d, m, dt, alpha0, alpham):
     # material 材料 wood concrete rock_wool中选，列表

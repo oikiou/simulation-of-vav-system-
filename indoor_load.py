@@ -25,13 +25,13 @@ dt = 60
 w_alpha = 45  # 朝向
 rho_g = 0.2  # 地面反射率
 a_s = 0.7  # 外表面日射吸收率
+epsilon = 0.9  # 长波辐射率
 # 窗
 A1 = 28  # 开口面积
 K1 = 6.4  # 热贯流率
 AG = 24  # 玻璃面积
 tau_TN = 0.79  # 综合透过率
 B_N = 0.04  # 吸收日射取得率
-epsilon = 0.9  # 放射
 # 外壁
 A2 = 22.4
 A2_material = ["concrete", "rock_wool", "air", "arumi"]
