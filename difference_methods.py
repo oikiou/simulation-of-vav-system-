@@ -147,14 +147,16 @@ def diff_ux(material, d, m, dt, alpha0, alpham):
                        "arumi": 210,
                        "carpet": 0.08,
                        "stonebodo": 0.17,
-                       "air":1}
+                       "air":1,
+                       "wood_m":0.15}
     material_c_rho = {"concrete": 1934,
                       "wood":716,
                       "rock_wool": 84,
                       "arumi": 2373,
                       "carpet": 318,
                       "stonebodo": 1030,
-                      "air":1}
+                      "air":1,
+                      "wood_m":1000}
     r_air = 0.086
 
     # 网格尺寸，物性参数
