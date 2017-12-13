@@ -222,11 +222,17 @@ for step in range(8760):
     for i in range(face_down_wall_n):
         TE.append(outdoor_temp[step])
 
+
+
     AFT = np.multiply(A, (np.multiply(FO, TE) + CF))
+    #print(AFT)
     AFT = np.sum(AFT)
 
     # CA
     CA = Arm * alpha_i * kc * AFT / SDT
+
+    #if step == 5653:
+        #print(RMDT, AR, RMDT * T_R, CA, TE)
 
     # BRM
     BRM = RMDT + AR + 1005 * Go
@@ -242,7 +248,7 @@ for step in range(8760):
     T_mrt = (kc * ANF * T_R + AFT) / SDT
 
     # Tn
-    for i in range(4):
+    for i in range(face_n):
         face_tn[i][0] += face_ul[i][0] * T_R
         face_tn[i][-1] += face_ur[i][-1] * TE[i]
         face_tn[i] = np.dot(face_ux[i], face_tn[i])
@@ -252,6 +258,8 @@ plt.plot(outdoor_temp)
 plt.plot(t_r_output)
 plt.show()
 
+
+np.savetxt('result_m.csv', t_r_output, delimiter = ',', fmt="%.3f")
 
 
 
