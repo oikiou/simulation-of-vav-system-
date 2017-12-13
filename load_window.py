@@ -38,4 +38,3 @@ def load_window(indoor_temp, w_alpha, w_beta, Ago, k=0.85, tau=0.48, Bn=0.12, K=
     Q_GA = Ags * Bn * ((1-Fsdw) * CId * I_D + 0.91 * I_d)
     Q_GO = Ago * K * (outdoor_temp - epsilon * Fs * RN / alpha_o - indoor_temp)
     return [Q_GT, Q_GA, Q_GO]
-

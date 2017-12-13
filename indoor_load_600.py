@@ -111,7 +111,7 @@ outdoor_temp = weather_data["outdoor_temp"]
 face_t_gt = []
 face_t_ga = []
 for i in range(face_t_n):
-    Q_GT, Q_GA, Q_GO = load_window.load_window(26, face_t[i][1], 0, face_t[i][2], face_t[i][2] / face_t[i][3],
+    Q_GT, Q_GA, Q_GO = load_window.load_window(26, face_t[i][1], face_t[i][2], face_t[i][2] / face_t[i][3],
                                                face_t[i][4], face_t[i][5], face_t[i][6])
     face_t_gt.append(list(Q_GT))
     face_t_ga.append(list(Q_GA))
@@ -146,7 +146,7 @@ sche = [0] * 8 + [1] * 12 + [0] * 4  # 9-18
 sche_year = sche * 365
 
 # 3 初始条件的设定
-T_R = 5
+T_R = 10
 face_tn = []
 for i in range(face_n):
     tn = np.ones(np.array(face_ul[i]).shape) * T_R
@@ -154,9 +154,6 @@ for i in range(face_n):
 
 # 输出
 t_r_output = []
-t_r_delta_output = []
-q0 = []
-output = []
 
 # 4 循环开始
 for step in range(8760):
@@ -202,11 +199,8 @@ for step in range(8760):
     BRC = RMDT * T_R + CA + 1005 * Go * outdoor_temp[step] + HG_c
 
     # T_R
-    T_R_temp = BRC / BRM
-    delta_T_R = T_R_temp - T_R
-    T_R = T_R_temp
+    T_R = BRC / BRM
     t_r_output.append(T_R)
-    t_r_delta_output.append(delta_T_R)
     # print(outdoor_temp[step], T_R)
 
     # 后处理
@@ -214,37 +208,15 @@ for step in range(8760):
     T_mrt = (kc * ANF * T_R + AFT) / SDT
 
     # Tn
-    T_sn = []
-    for i in range(face_n):
+    for i in range(4):
         face_tn[i][0] += face_ul[i][0] * T_R
         face_tn[i][-1] += face_ur[i][-1] * TE[i]
         face_tn[i] = np.dot(face_ux[i], face_tn[i])
-        T_sn.append(face_tn[i][0])
-    q0.append(list(alpha_i * (T_R - T_sn)))
 
-    if 1:#step > 4801 and step < 4825:
-        output.append(outdoor_temp[step])
-        output.append(T_R)
-        output.append(T_mrt)
-        output.extend(T_sn)
-        output.extend(TE)
-        output.extend(q0[step])
-        output.append(RMDT * delta_T_R)
-        output.append(CA-AR*T_R)
-        output.append(1005 * Go * (outdoor_temp[step] - T_R))
-        output.append(HG_c)
-        output.append(Q_gt[step])
-        output.append(HG_r)
 
-output = np.array(output).reshape(-1,22)
-#print(output)
-np.savetxt('result_w.csv', output, delimiter = ',', fmt="%.3f")
-
-'''
 plt.plot(outdoor_temp)
 plt.plot(t_r_output)
 plt.show()
-'''
 
 
 
