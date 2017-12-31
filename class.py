@@ -101,7 +101,7 @@ else:
             print('Students:', Student.count)
             print('测试通过!')
 
-'''
+
 
 # slots 限制实例的属性
 # raise ValueError
@@ -123,12 +123,99 @@ print(s.get_score())
 #s.set_score(9999)
 #print(s.get_score())
 
-#  @property
 
 
+#  @property 先来一个属性
+#  @score.setter 设定这个属性
+
+class Student(object):
+
+    @property  # 把方法变成属性调用  # 本来是s.score(),现在是s.score  # ？property意义何在--在于创建score.setter，可控属性
+    def score(self):
+        return self._score
+
+    @score.setter  # 赋值语句的方法
+    def score(self, value):
+        if not isinstance(value, int):
+            raise ValueError('integer!')  # raise了之后就直接中断操作?
+        if value < 0 or value > 100:
+            raise ValueError('0-100!')
+        self._score = value
+
+s = Student()
+s.score = 60
+print(s.score)
+s.score = 1000
 
 
+# property 定义只读属性
+class Student(object):
 
+    @property
+    def birth(self):
+        return self._birth
+
+    @birth.setter
+    def birth(self, value):
+        self._birth = value
+
+    @property
+    def age(self):
+        return 2018 - self._birth
+
+s = Student()
+s.birth = 1994
+print(s.age)
+# s.age = 24
+l = [1,2,3]
+# l.__len__ = 4  # __len__ read-only
+print(l.__len__())
+
+'''
+
+# 多重继承
+# 定制类
+# __iter__
+class Fib(object):
+    def __init__(self):
+        self.a ,self.b = 0, 1
+
+    def __iter__(self):
+        return self  # 实例本身就是迭代对象??
+
+    def __next__(self):
+        self.a, self.b = self.b, self.a + self.b
+        if self.a > 10000:
+            raise StopIteration()
+        return self.a
+
+    def __getitem__(self, n):  # 可以按照下标取出元素
+        if isinstance(n, int):
+            a, b = 0, 1
+            for x in range(n):
+                a, b = b, a+b
+            return a
+        if isinstance(n, slice):  # 切片
+            start = n.start
+            stop = n.stop
+            if start is None:
+                start = 0
+            a, b = 0, 1
+            L = []
+            for x in range(stop):
+                if x >= start:
+                    L.append(a)
+
+                a, b = b, a+b
+            return L
+
+for n in Fib():
+    print(n)
+print(Fib()[15])
+print(Fib()[3:12])
+
+
+# getattr
 
 
 
