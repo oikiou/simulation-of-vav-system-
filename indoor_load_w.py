@@ -235,9 +235,9 @@ for step in range(8760):
         output.append(Q_gt[step])
         output.append(HG_r)
 
-output = np.array(output).reshape(-1,22)
+#output = np.array(output).reshape(-1,22)
 #print(output)
-np.savetxt('result_w.csv', output, delimiter = ',', fmt="%.3f")
+#np.savetxt('result_w.csv', output, delimiter = ',', fmt="%.3f")
 
 '''
 plt.plot(outdoor_temp)
