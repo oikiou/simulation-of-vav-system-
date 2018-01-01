@@ -171,7 +171,7 @@ l = [1,2,3]
 # l.__len__ = 4  # __len__ read-only
 print(l.__len__())
 
-'''
+
 
 # 多重继承
 # 定制类
@@ -215,7 +215,179 @@ print(Fib()[15])
 print(Fib()[3:12])
 
 
-# getattr
+
+# call
+
+class Student(object):
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self):
+        print('My name is %s.' % self.name)
+
+s = Student('Michael')
+s()  # 调用实例
+
+print(callable(s))  # 判断一个对象能否被调用，就是看对象内部有没有定义__call__
+print(callable([1]))
+
+
+
+# 枚举类 # 定义常量 （可以转化成数字编号的常量，像星期，月份等）
+from enum import Enum, unique
+
+Month = Enum('Month', ('Jan', 'Feb', 'May'))
+
+for name, member in Month.__members__.items():  # Month.__members__.items()写成Month也是可以的
+    print(name, ' ', member, ',', member.value)
+
+print(Month.Jan, Month.Jan.value)
+# value 是从1开始的计数
+
+@unique  # 查重
+class Weekday(Enum):
+    Sun = 0
+    Mon = 1
+    Tue = 2
+
+day1 = Weekday.Mon
+
+
+# 练习
+from enum import Enum, unique
+class Gender(Enum):
+    Male = 0
+    Female = 1
+
+class Student(object):
+    def __init__(self, name, gender):
+        self.name = name
+        self.gender = gender
+
+# 测试
+bart = Student('Bart', Gender.Male)
+if bart.gender == Gender.Male:
+    print('测试通过!')
+else:
+    print('测试失败!')
+
+
+# 元类 metaclass
+
+class ListMetaclass(type):
+    def __new__(cls, name, bases, attrs):
+        attrs['add'] = lambda self, value: self.append(value)
+        return  type.__new__(cls, name, bases, attrs)
+
+class Mylist(list, metaclass=ListMetaclass):
+    pass
+
+L = Mylist()
+L.add(1)
+print(L)
+
+# 版本问题？
+# ORM 对象-关系映射 框架 底层模块 调用接口
+
+
+
+# 偏函数 —— 就是把函数的某些参数固定住的函数
+import functools
+int2 = functools.partial(int, base=2)
+print(int2('1000000'))
+
+
+# 等同于
+def int3(value, base=2):
+    return int(value, base)
+print(int3('1000000'))
+
+
+
+# __doc__ 类的文档字符串
+class Employee:
+    '所有员工的基类'
+    empCount = 0
+
+    def __init__(self, name, salary):
+        self.name = name
+        self.salary = salary
+        Employee.empCount += 1
+
+    def displayCount(self):
+        print(Employee.empCount)
+
+    def displayEmployee(self):
+        print(self.name, self.salary)
+
+print(Employee.__doc__)  # 类的文档字符串
+print(Employee.__dict__)  # 类的字典，所有的属性和值
+
+
+
+# 运算符重载
+
+class Vector(object):
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+
+    def __str__(self):  # 显示类的时候用
+        return 'Vector (%d,%d)' % (self.a, self.b)
+
+    def __add__(self, other):  # 运算符'+'重载
+        return Vector(self.a + other.a, self.b + other.b)
+
+v1 = Vector(2,10)
+v2 = Vector(5, -2)
+print(v1 + v2)
+
+
+
+# 私有private
+
+class JustCounter(object):
+    __secretCount = 0
+    publicCount = 0
+
+    def count(self):
+        self.__secretCount += 2
+        self.publicCount += 1
+        print(self.__secretCount)
+
+counter = JustCounter()
+counter.count()
+counter.count()
+print(counter.publicCount)
+#print(counter.__secretCount)
+
+'''
+
+# 计算时间
+
+import time
+
+def sum2(n):
+    start = time.time()
+
+    thesum = 0
+    for i in range(1,n+1):  # range是可以定开始和结束的
+        thesum += i
+
+    end = time.time()
+
+    return thesum, end-start
+
+for i in range(5):
+    print('sum is %d required %10.7f seconds'%sum2(1000000))
+
+
+
+
+
+
+
+
 
 
 
