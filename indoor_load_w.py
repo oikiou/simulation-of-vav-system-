@@ -110,7 +110,7 @@ outdoor_temp = weather_data["outdoor_temp"]
 face_t_gt = []
 face_t_ga = []
 for i in range(face_t_n):
-    Q_GT, Q_GA, Q_GO = load_window.load_window(26, face_t[i][1], 0, face_t[i][2], face_t[i][2] / face_t[i][3],
+    Q_GT, Q_GA, Q_GO = load_window.load_window(26, face_t[i][1], 90, face_t[i][2], face_t[i][2] / face_t[i][3],
                                                face_t[i][4], face_t[i][5], face_t[i][6])
     face_t_gt.append(list(Q_GT))
     face_t_ga.append(list(Q_GA))
@@ -134,7 +134,7 @@ face_t_te = []
 for i in range(face_t_n):
     te = np.divide(face_t_ga[i], face_t[i][2] * face_t[i][6]) - (epsilon * Fs * RN) / alpha_o + outdoor_temp
     face_t_te.append(list(te))
-# 外墙
+# 外墙 
 face_wall_te = []
 for i in range(face_wall_n):
     te = (np.multiply(a_s, face_iw[i]) - epsilon * Fs * RN) / alpha_o + outdoor_temp

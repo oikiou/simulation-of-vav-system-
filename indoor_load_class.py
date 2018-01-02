@@ -3,6 +3,7 @@ import numpy as np
 import difference_methods
 import readcsv
 import load_window
+import solar_radiation
 ## 热负荷计算programme
 
 # 1. input
@@ -60,12 +61,16 @@ class Windows(object):
         self.GT, self.GA, self.GO = load_window.load_window(26, self.orientation, self.tilt, self.area, self.glass_area / self.area, self.tau, self.bn, self.k)
         # 这个def需要检查！！
 
+        # 相当外气温度
+        self.te = self.GA / self.area / self.k - epsilon * Fs * RN / alpha_o + outdoor_temp
+        # GA肯定有问题！
+
 
 # 输入
-window_1 = Windows(28, 'room_1', 45, 0, 24, 0.79, 0.04, 6.4)
-window_2 = Windows(28, 'room_2', 45, 0, 24, 0.79, 0.04, 6.4)
+window_1 = Windows(28, 'room_1', 45, 90, 24, 0.79, 0.04, 6.4)
+window_2 = Windows(28, 'room_2', 45, 90, 24, 0.79, 0.04, 6.4)
 
-
+print(outdoor_temp[4800:4824], window_1.te[4800:4824])
 # 定义墙
 class Walls(object):
     sum_area = 0
@@ -99,10 +104,15 @@ class Walls(object):
         Walls.walls.append(self)  # 生成列表
 
         # 日射量
-        
+        if self.wall_type in ('outer_wall', 'roof'):
+            self.I_w = solar_radiation.i_w(self.orientation, self.tilt)
+
+        # 相当外气温度
+        # 外墙
+
 
 # 输入
-wall_1 = Walls(22.4, 'room_1', 'outer_wall', ["concrete", "rock_wool", "air", "alum"], [0.150, 0.050, 0, 0.002], 45, 0, [7, 2, 1, 1])
+wall_1 = Walls(22.4, 'room_1', 'outer_wall', ["concrete", "rock_wool", "air", "alum"], [0.150, 0.050, 0, 0.002], 45, 90, [7, 2, 1, 1])
 wall_2 = Walls(100.8, 'room_1', 'inner_wall', ["concrete"], [0.120], 0, 0, [6])
 wall_3 = Walls(98, 'room_1', 'floor',  ["carpet", "concrete", "air", "stonebodo"], [0.015, 0.150, 0, 0.012], 0, 0, [1, 7, 1, 1])
 wall_4 = Walls(98, 'room_1', 'ceiling', ["stonebodo", "air", "concrete", "carpet"], [0.012, 0, 0.150, 0.015], 0, 0, [1, 1, 7, 1])

@@ -57,3 +57,7 @@ def solar_radiation_for_load_window(w_alpha, w_beta=90):
 def solar_radiation(w_alpha, w_beta=90):
     [I_d, I_s, I_r, cos_theta, Fs, weather_data] = solar_radiation_for_load_window(w_alpha, w_beta)
     return [I_d, I_s, I_r, cos_theta, Fs]
+
+def i_w(w_alpha, w_beta):
+    [I_d, I_s, I_r, cos_theta, Fs, weather_data] = solar_radiation_for_load_window(w_alpha, w_beta)
+    return I_d + I_s + I_r
