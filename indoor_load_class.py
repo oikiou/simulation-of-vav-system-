@@ -53,9 +53,6 @@ class Windows(object):
         self.FO = self.k / alpha_i  # 差分法FO
         self.anf = self.area * self.FI
 
-        Windows.sum_area += self.area  # 统计面积
-        Windows.windows.append(self)  # 生成列表
-
         # 日射热取得
         # 窗的GO是不需要的，因为贯流是一起算的？
         self.GT, self.GA, self.GO = load_window.load_window(26, self.orientation, self.tilt, self.area, self.glass_area / self.area, self.tau, self.bn, self.k)
@@ -65,12 +62,16 @@ class Windows(object):
         self.te = self.GA / self.area / self.k - epsilon * Fs * RN / alpha_o + outdoor_temp
         # GA肯定有问题！
 
+        Windows.sum_area += self.area  # 统计面积
+        Windows.windows.append(self)  # 生成列表
+
 
 # 输入
 window_1 = Windows(28, 'room_1', 45, 90, 24, 0.79, 0.04, 6.4)
 window_2 = Windows(28, 'room_2', 45, 90, 24, 0.79, 0.04, 6.4)
 
-print(outdoor_temp[4800:4824], window_1.te[4800:4824])
+
+#print(outdoor_temp[4800:4824], window_1.te[4800:4824])
 # 定义墙
 class Walls(object):
     sum_area = 0
@@ -100,15 +101,13 @@ class Walls(object):
         self.FO = self.ux[0][-1] * self.ur[-1]
         self.anf = self.area * self.FI
 
-        Walls.sum_area += self.area  # 统计面积
-        Walls.walls.append(self)  # 生成列表
-
-        # 日射量
+        # 日射量 (仅针对外墙)
         if self.wall_type in ('outer_wall', 'roof'):
             self.I_w = solar_radiation.i_w(self.orientation, self.tilt)
+            self.te = (a_s * self.I_w - epsilon * Fs * RN) / alpha_o + outdoor_temp  # 相当外气温度
 
-        # 相当外气温度
-        # 外墙
+        Walls.sum_area += self.area  # 统计面积
+        Walls.walls.append(self)  # 生成列表
 
 
 # 输入
@@ -117,40 +116,58 @@ wall_2 = Walls(100.8, 'room_1', 'inner_wall', ["concrete"], [0.120], 0, 0, [6])
 wall_3 = Walls(98, 'room_1', 'floor',  ["carpet", "concrete", "air", "stonebodo"], [0.015, 0.150, 0, 0.012], 0, 0, [1, 7, 1, 1])
 wall_4 = Walls(98, 'room_1', 'ceiling', ["stonebodo", "air", "concrete", "carpet"], [0.012, 0, 0.150, 0.015], 0, 0, [1, 1, 7, 1])
 
+class Schedule(object):
+    sche = [0] * 8 + [1] * 12 + [0] * 4
+    sche_year = sche * 365
 
-class Human(object):
-    # 人数
-    # 体表面积
-    # 发热量
-    # 时刻表
-    def __init__(self, n, t, s24, d):
+sche_year = Schedule().sche_year
+
+class Humans(object):
+    humans = []
+
+    def __init__(self, room, n, t, s24, d):
+        self.room = room
         self.N_H = n
         self.H_T = t
         self.H_S24 = s24
         self.H_d = d
 
+        Humans.humans.append(self)
+
     # 通过室内温度求人体发热量
-    def t_h(self, indoor_temp):
-        pass
+    def load_human(self, indoor_temp):
+        self.H_s = self.H_S24 - self.H_d * (indoor_temp - 24)
+        self.H_l = self.H_T - self.H_s
+        self.Q_HS = self.N_H * self.H_s
+        self.Q_HL = self.N_H * self.H_l
+        return self
 
-human_1 = Human(16, 119, 62, 4)
+human_1 = Humans('room_1', 16, 119, 62, 4)
 
 
-class Light(object):
+class Lights(object):
+    lights = []
 
-    def __init__(self, w):
+    def __init__(self, room, w):
+        self.room = room
         self.W_LI = w
 
-light_1 = Light(2900)
+        Lights.lights.append(self)
+
+light_1 = Lights('room_1', 2900)
 
 
-class Equipment(object):
+class Equipments(object):
+    equipments = []
 
-    def __init__(self, ws, wl):
+    def __init__(self, room, ws, wl):
+        self.room = room
         self.W_AS = ws
         self.W_AL = wl
 
-equipment_1 = Equipment(500, 0)
+        Equipments.equipments.append(self)
+
+equipment_1 = Equipments('room_1', 500, 0)
 
 
 # 定义房间
@@ -164,6 +181,9 @@ class Room(object):
         self.windows = [x for x in Windows.windows if x.room == self.room_name]  # 找窗
         self.walls = [x for x in Walls.walls if x.room == self.room_name]  # 找墙
         self.envelope = self.windows + self.walls  # 围护
+        self.humans = [x for x in Humans.humans if x.room == self.room_name]
+        self.lights = [x for x in Lights.lights if x.room == self.room_name]
+        self.equipments = [x for x in Equipments.equipments if x.room == self.room_name]
 
         self.Arm = sum([x.area for x in self.envelope])  # 内表面积和
         self.ANF = sum([x.anf for x in self.envelope])
@@ -182,10 +202,46 @@ class Room(object):
         self.RMDT = (c_air * rho_air * self.VOL + self.CPF * 1000) / dt
         self.Go = rho_air * self.n_air * self.VOL / 3600  # 间隙风
 
+        # 初始条件
+        self.T_R = 5
+        for x in self.walls:
+            x.tn = np.ones(np.array(x.ul).shape) * self.T_R
+
+    # 室内发热成分
+    def heat_generate(self, indoor_temp, step):
+        self.humans[0] = self.humans[0].load_human(indoor_temp)  # 限制了一个房间只有一种人
+        self.HG_c = (0.5 * self.humans[0].Q_HS + 0.6 * self.lights[0].W_LI + 0.6 * self.equipments[0].W_AS) * sche_year[step]
+        self.HG_r = (0.5 * self.humans[0].Q_HS + 0.4 * self.lights[0].W_LI + 0.4 * self.equipments[0].W_AS) * sche_year[step]
+        self.HLG = (self.humans[0].Q_HL + self.equipments[0].W_AL) * sche_year[step]
+        return self
+
+    def cf_cal(self):
+        for x in self.walls:
+            x.cf = np.dot(x.ux[0], x.tn)  # CF 围护的前一个时刻的影响
+        for x in self.envelope:
+            x.rs = x.sn * (self.windows[0].GT + self.HG_r) / x.area  # 室内表面吸收的辐射热
+        return self
+
+    # 相当外气温度(内壁)  (外壁还是list的形式)
+    def te_indoow(self, step):
+        for x in self.envelope:
+            if x.wall_type == 'inner_wall':
+                x.te = 000000
+
+
+
+
+
 room_1 = Room('room_1', 353, 3500, 0.2)
-#print(room_1.ANF)
-#print([x.sn for x in room_1.envelope])
+print(room_1.Arm)
+print([x.sn for x in room_1.envelope])
 
+# 循环开始
+room_1 = room_1.heat_generate(5, 12)
+room_1 = room_1.cf_cal()
 
-
+print(room_1.humans[0].Q_HS)
+print(room_1.humans[0].Q_HS, room_1.HG_c)
+print(room_1.walls[0].rs)
+print(room_1.windows[0].te[1])
 

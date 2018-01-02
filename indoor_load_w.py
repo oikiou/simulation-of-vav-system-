@@ -134,7 +134,7 @@ face_t_te = []
 for i in range(face_t_n):
     te = np.divide(face_t_ga[i], face_t[i][2] * face_t[i][6]) - (epsilon * Fs * RN) / alpha_o + outdoor_temp
     face_t_te.append(list(te))
-# 外墙 
+# 外墙
 face_wall_te = []
 for i in range(face_wall_n):
     te = (np.multiply(a_s, face_iw[i]) - epsilon * Fs * RN) / alpha_o + outdoor_temp
