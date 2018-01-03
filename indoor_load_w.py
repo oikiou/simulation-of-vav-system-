@@ -190,8 +190,8 @@ for step in range(8760):
         TE.append(0.7 * T_R + 0.3 * outdoor_temp[step])
     for i in range(face_up_down_wall_n):
         TE.append(T_R)
-    AFT = np.multiply(A, (np.multiply(FO, TE) + np.multiply(FI, np.divide(RS, alpha_i)) + CF))
-    AFT = np.sum(AFT)
+    AFT0 = np.multiply(A, (np.multiply(FO, TE) + np.multiply(FI, np.divide(RS, alpha_i)) + CF))
+    AFT = np.sum(AFT0)
 
     # CA
     CA = Arm * alpha_i * kc * AFT / SDT
@@ -216,9 +216,10 @@ for step in range(8760):
     T_sn = []
     for i in range(face_n):
         face_tn[i][0] += face_ul[i][0] * T_R
-        face_tn[i][-1] += face_ur[i][-1] * TE[i]
+        face_tn[i][-1] += face_ur[i][-1] * TE[i+1]
         face_tn[i] = np.dot(face_ux[i], face_tn[i])
         T_sn.append(face_tn[i][0])
+        q00 = (alpha_i * (T_R - T_sn))
     q0.append(list(alpha_i * (T_R - T_sn)))
 
     if 1:#step > 4801 and step < 4825:
@@ -239,11 +240,11 @@ for step in range(8760):
 #print(output)
 #np.savetxt('result_w.csv', output, delimiter = ',', fmt="%.3f")
 
-'''
+
 plt.plot(outdoor_temp)
 plt.plot(t_r_output)
 plt.show()
-'''
+
 
 
 

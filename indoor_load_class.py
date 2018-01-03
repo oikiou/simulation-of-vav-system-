@@ -4,6 +4,7 @@ import difference_methods
 import readcsv
 import load_window
 import solar_radiation
+import matplotlib.pyplot as plt
 ## 热负荷计算programme
 
 # 1. input
@@ -59,7 +60,7 @@ class Windows(object):
         # 这个def需要检查！！
 
         # 相当外气温度
-        self.te = self.GA / self.area / self.k - epsilon * Fs * RN / alpha_o + outdoor_temp
+        self.te_8760 = self.GA / self.area / self.k - epsilon * Fs * RN / alpha_o + outdoor_temp
         # GA肯定有问题！
 
         Windows.sum_area += self.area  # 统计面积
@@ -104,7 +105,9 @@ class Walls(object):
         # 日射量 (仅针对外墙)
         if self.wall_type in ('outer_wall', 'roof'):
             self.I_w = solar_radiation.i_w(self.orientation, self.tilt)
-            self.te = (a_s * self.I_w - epsilon * Fs * RN) / alpha_o + outdoor_temp  # 相当外气温度
+            self.te_8760 = (a_s * self.I_w - epsilon * Fs * RN) / alpha_o + outdoor_temp  # 相当外气温度
+        if self.wall_type in ('ground'):
+            self.te_8760 = outdoor_temp  # 土地？
 
         Walls.sum_area += self.area  # 统计面积
         Walls.walls.append(self)  # 生成列表
@@ -112,7 +115,7 @@ class Walls(object):
 
 # 输入
 wall_1 = Walls(22.4, 'room_1', 'outer_wall', ["concrete", "rock_wool", "air", "alum"], [0.150, 0.050, 0, 0.002], 45, 90, [7, 2, 1, 1])
-wall_2 = Walls(100.8, 'room_1', 'inner_wall', ["concrete"], [0.120], 0, 0, [6])
+wall_2 = Walls(100.8, 'room_1', 'inner_wall', ["concrete"], [0.120], 0, 90, [6])
 wall_3 = Walls(98, 'room_1', 'floor',  ["carpet", "concrete", "air", "stonebodo"], [0.015, 0.150, 0, 0.012], 0, 0, [1, 7, 1, 1])
 wall_4 = Walls(98, 'room_1', 'ceiling', ["stonebodo", "air", "concrete", "carpet"], [0.012, 0, 0.150, 0.015], 0, 0, [1, 1, 7, 1])
 
@@ -203,45 +206,98 @@ class Room(object):
         self.Go = rho_air * self.n_air * self.VOL / 3600  # 间隙风
 
         # 初始条件
-        self.T_R = 5
+        self.indoor_temp = 5
         for x in self.walls:
-            x.tn = np.ones(np.array(x.ul).shape) * self.T_R
+            x.tn = np.ones(np.array(x.ul).shape) * self.indoor_temp
 
     # 室内发热成分
-    def heat_generate(self, indoor_temp, step):
-        self.humans[0] = self.humans[0].load_human(indoor_temp)  # 限制了一个房间只有一种人
+    def heat_generate(self, step):
+        self.humans[0] = self.humans[0].load_human(self.indoor_temp)  # 限制了一个房间只有一种人
         self.HG_c = (0.5 * self.humans[0].Q_HS + 0.6 * self.lights[0].W_LI + 0.6 * self.equipments[0].W_AS) * sche_year[step]
         self.HG_r = (0.5 * self.humans[0].Q_HS + 0.4 * self.lights[0].W_LI + 0.4 * self.equipments[0].W_AS) * sche_year[step]
         self.HLG = (self.humans[0].Q_HL + self.equipments[0].W_AL) * sche_year[step]
         return self
 
-    def cf_cal(self):
+    def cf_cal(self, step):
+        for x in self.windows:
+            x.cf = 0  # 定常
         for x in self.walls:
             x.cf = np.dot(x.ux[0], x.tn)  # CF 围护的前一个时刻的影响
         for x in self.envelope:
-            x.rs = x.sn * (self.windows[0].GT + self.HG_r) / x.area  # 室内表面吸收的辐射热
+            x.rs = x.sn * (self.windows[0].GT[step] + self.HG_r) / x.area  # 室内表面吸收的辐射热
         return self
 
     # 相当外气温度(内壁)  (外壁还是list的形式)
-    def te_indoow(self, step):
-        for x in self.envelope:
+    def te_indoor(self, step):
+        self.AFT = 0
+        for x in self.windows:
+            x.te = x.te_8760[step]
+        for x in self.walls:
+            if x.wall_type in ('outer_wall', 'roof', 'ground'):
+                x.te = x.te_8760[step]
             if x.wall_type == 'inner_wall':
-                x.te = 000000
+                x.te = 0.7 * self.indoor_temp + 0.3 * outdoor_temp[step]
+            if x.wall_type in ('floor', 'ceiling'):
+                x.te = self.indoor_temp
+        for x in self.envelope:
+            x.aft = (x.FO * x.te + x.FI * x.rs / alpha_i + x.cf) * x.area
+            self.AFT += x.aft
+        return self
 
+    # 计算indoor_temp
+    def indoor_temp_cal(self, step):
+        temp0 = self.indoor_temp
+        self.CA = self.Arm * alpha_i * kc * self.AFT / self.SDT
+        self.BRM = self.RMDT + self.AR + 1005 * self.Go
+        self.BRC = self.RMDT * self.indoor_temp + self.CA + 1005 * self.Go * outdoor_temp[step] + self.HG_c
+        self.indoor_temp = self.BRC / self.BRM
+        self.delta_indoor_temp = self.indoor_temp - temp0
+        return self
 
+    # 后处理
+    def after_cal(self):
+        self.T_mrt = (kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
+        for x in self.walls:
+            x.tn[0] += x.ul[0] * self.indoor_temp
+            x.tn[-1] += x.ur[-1] * x.te
+            x.tn = np.dot(x.ux, x.tn)
+            x.T_sn = x.tn[0]
+            x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+        return self
 
+    # 循环
+    def cycle(self, step):
+        self = self.heat_generate(step)
+        self = self.cf_cal(step)
+        self = self.te_indoor(step)
+        self = self.indoor_temp_cal(step)
+        self = self.after_cal()
+        return self
 
 
 room_1 = Room('room_1', 353, 3500, 0.2)
-print(room_1.Arm)
-print([x.sn for x in room_1.envelope])
+#print(room_1.Arm)
+#print([x.sn for x in room_1.envelope])
+#print(room_1.walls[0].tn, room_1.walls[0].ul, room_1.indoor_temp)
 
 # 循环开始
-room_1 = room_1.heat_generate(5, 12)
-room_1 = room_1.cf_cal()
+output = []
+for step in range(8760):
+    room_1 = room_1.heat_generate(step)
+    room_1 = room_1.cf_cal(step)
+    room_1 = room_1.te_indoor(step)
+    room_1 = room_1.indoor_temp_cal(step)
+    room_1 = room_1.after_cal()
+    output.append(room_1.indoor_temp)
 
-print(room_1.humans[0].Q_HS)
-print(room_1.humans[0].Q_HS, room_1.HG_c)
-print(room_1.walls[0].rs)
-print(room_1.windows[0].te[1])
+#print(room_1.humans[0].Q_HS)
+#print(room_1.humans[0].Q_HS, room_1.HG_c)
+#print(room_1.walls[0].rs)
+#print(room_1.windows[0].te[1])
+#print(room_1.AFT[0])
 
+'''
+plt.plot(outdoor_temp)
+plt.plot(output)
+plt.show()
+'''
