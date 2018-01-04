@@ -2,7 +2,12 @@
 import numpy as np
 import sun
 import readcsv
-from my_math import *
+
+def deg_to_rad(deg):
+    return deg*3.1415926/180
+
+def rad_to_deg(rad):
+    return rad/3.1415926*180
 
 ## 计算日射量(对某一个面而言)
 # 输入 朝向

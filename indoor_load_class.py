@@ -257,6 +257,9 @@ class Room(object):
     # 后处理
     def after_cal(self):
         self.T_mrt = (kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
+        for x in sel f.windows:
+            x.T_sn = self.indoor_temp - (self.indoor_temp - outdoor_temp[step]) * x.k / alpha_i
+            x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
         for x in self.walls:
             x.tn[0] += x.ul[0] * self.indoor_temp
             x.tn[-1] += x.ur[-1] * x.te
@@ -265,24 +268,13 @@ class Room(object):
             x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
         return self
 
-    # 循环
-    def cycle(self, step):
-        self = self.heat_generate(step)
-        self = self.cf_cal(step)
-        self = self.te_indoor(step)
-        self = self.indoor_temp_cal(step)
-        self = self.after_cal()
-        return self
-
 
 room_1 = Room('room_1', 353, 3500, 0.2)
-#print(room_1.Arm)
-#print([x.sn for x in room_1.envelope])
-#print(room_1.walls[0].tn, room_1.walls[0].ul, room_1.indoor_temp)
+
 
 # 循环开始
 output = []
-for step in range(8760):
+for step in range(240):
     room_1 = room_1.heat_generate(step)
     room_1 = room_1.cf_cal(step)
     room_1 = room_1.te_indoor(step)
@@ -290,14 +282,7 @@ for step in range(8760):
     room_1 = room_1.after_cal()
     output.append(room_1.indoor_temp)
 
-#print(room_1.humans[0].Q_HS)
-#print(room_1.humans[0].Q_HS, room_1.HG_c)
-#print(room_1.walls[0].rs)
-#print(room_1.windows[0].te[1])
-#print(room_1.AFT[0])
 
-'''
-plt.plot(outdoor_temp)
+plt.plot(outdoor_temp[:240])
 plt.plot(output)
 plt.show()
-'''
