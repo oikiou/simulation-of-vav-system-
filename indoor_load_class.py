@@ -2,8 +2,7 @@
 import numpy as np
 import difference_methods
 import readcsv
-import load_window
-import solar_radiation
+import sun_class
 import matplotlib.pyplot as plt
 ## 热负荷计算programme
 
@@ -33,7 +32,7 @@ outdoor_temp = weather_data["outdoor_temp"]
 
 # 1.1 壁体
 # 定义窗
-class Windows(object):
+class Windows(sun_class.Face):
     sum_area = 0
     windows = []
 
@@ -56,8 +55,9 @@ class Windows(object):
 
         # 日射热取得
         # 窗的GO是不需要的，因为贯流是一起算的？
-        self.GT, self.GA, self.GO = load_window.load_window(26, self.orientation, self.tilt, self.area, self.glass_area / self.area, self.tau, self.bn, self.k)
-        # 这个def需要检查！！
+        self = self.solar_radiation()
+        self = self.load_window(self.glass_area, self.tau, self.bn)
+        # self.GT, self.GA, self.GO = load_window.load_window(26, self.orientation, self.tilt, self.area, self.glass_area / self.area, self.tau, self.bn, self.k)
 
         # 相当外气温度
         self.te_8760 = self.GA / self.area / self.k - epsilon * Fs * RN / alpha_o + outdoor_temp
@@ -74,7 +74,7 @@ window_2 = Windows(28, 'room_2', 45, 90, 24, 0.79, 0.04, 6.4)
 
 #print(outdoor_temp[4800:4824], window_1.te[4800:4824])
 # 定义墙
-class Walls(object):
+class Walls(sun_class.Face):
     sum_area = 0
     walls = []
 
@@ -104,7 +104,8 @@ class Walls(object):
 
         # 日射量 (仅针对外墙)
         if self.wall_type in ('outer_wall', 'roof'):
-            self.I_w = solar_radiation.i_w(self.orientation, self.tilt)
+            self = self.solar_radiation()
+            # self.I_w = solar_radiation.i_w(self.orientation, self.tilt)
             self.te_8760 = (a_s * self.I_w - epsilon * Fs * RN) / alpha_o + outdoor_temp  # 相当外气温度
         if self.wall_type in ('ground'):
             self.te_8760 = outdoor_temp  # 土地？
@@ -119,11 +120,13 @@ wall_2 = Walls(100.8, 'room_1', 'inner_wall', ["concrete"], [0.120], 0, 90, [6])
 wall_3 = Walls(98, 'room_1', 'floor',  ["carpet", "concrete", "air", "stonebodo"], [0.015, 0.150, 0, 0.012], 0, 0, [1, 7, 1, 1])
 wall_4 = Walls(98, 'room_1', 'ceiling', ["stonebodo", "air", "concrete", "carpet"], [0.012, 0, 0.150, 0.015], 0, 0, [1, 1, 7, 1])
 
+
 class Schedule(object):
     sche = [0] * 8 + [1] * 12 + [0] * 4
     sche_year = sche * 365
 
 sche_year = Schedule().sche_year
+
 
 class Humans(object):
     humans = []
@@ -257,7 +260,7 @@ class Room(object):
     # 后处理
     def after_cal(self):
         self.T_mrt = (kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
-        for x in sel f.windows:
+        for x in self.windows:
             x.T_sn = self.indoor_temp - (self.indoor_temp - outdoor_temp[step]) * x.k / alpha_i
             x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
         for x in self.walls:

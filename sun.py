@@ -32,7 +32,7 @@ def h_A(phi=35.68,L=139.77):
     h = rad_to_deg(np.arcsin(sin_h))
     cos_h = np.cos(np.arcsin(sin_h))
     h[h<0] = 0  #太阳高度角小于0等于0
-    print(h[5933])
+    #print(h[5933])
     # 计算太阳方位角
     cos_A = [(sin_h[i]*sin_phi-sin_delta[i])/(cos_h[i]*cos_phi) for i in range(8760)]
     A = np.array([rad_to_deg(omega[i]/abs(omega[i])*np.arccos(cos_A[i])) for i in range(8760)])
@@ -40,4 +40,3 @@ def h_A(phi=35.68,L=139.77):
     # 输出
     return [h,A]
 
-a = h_A()
