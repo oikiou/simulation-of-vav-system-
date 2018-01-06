@@ -3,13 +3,13 @@ import numpy as np
 import readcsv
 
 # 直达日射 水平面天空日射 夜间放射
-weather_data = readcsv.weather()
+weather_data = readcsv.weather_ashrae()
 I_dn = weather_data["I_dn"]
 I_sky = weather_data["I_sky"]
 rho_g = 0.2  # 地面反射
 
-I_dn[4839] = 739
-I_sky[4839] = 116
+# I_dn[4839] = 739
+# I_sky[4839] = 116
 
 def d2r(d):
     return np.divide(np.multiply(3.14159265, d), 180)
@@ -29,7 +29,7 @@ class Cities(object):
         self.time_zone = time_zone
 
 tokyo = Cities('tokyo', 35.68, 139.77, 9)
-usco = Cities('USCO', 39.76, -104.86, -6)
+usco = Cities('USCO', 39.8, -104.9, -6)
 
 
 # 太阳方位角和高度角的计算
@@ -37,7 +37,7 @@ usco = Cities('USCO', 39.76, -104.86, -6)
 # 输出为sun.h, sun.A
 class Sun(object):
     """太阳日射，知道城市的经纬度和时区，自动生成全年或一段时间的太阳高度角和方位角"""
-    hours_8760 = np.linspace(0, 8759, 8760)
+    hours_8760 = np.linspace(1, 8760, 8760)
 
     def __init__(self, city, hours=hours_8760):  # hours可以指定某一小时，或某一段时间，默认全年
         self.sin_latitude = np.sin(d2r(city.latitude))
@@ -69,7 +69,7 @@ class Sun(object):
             self.A[self.h == 0] = 0
 
 
-sun = Sun(tokyo)  # 对于一栋建筑而言，有且只有一个地理位置，故只有一个太阳高度和方位的list
+sun = Sun(usco)  # 对于一栋建筑而言，有且只有一个地理位置，故只有一个太阳高度和方位的list
 # 类似于气象参数，I_DN I_SKY 一个项目只有一个
 # print(sun.h, sun.A)
 
@@ -120,15 +120,15 @@ class Face(object):
         return self
 
 '''
-face_1 = Face(112.5, 90)
+face_1 = Face(90, 90)
 I = face_1.solar_radiation()
-I = face_1.load_window(3.06, 0.48, 0.12)
-step = 201 * 24 + 15
-print(I.I_D[step], I.I_s[step], I.I_r[step], I.I_w[step], I.GT[step], I.GA[step])
+#I = face_1.load_window(3.06, 0.48, 0.12)
+step = [x for x in range((31+28+4) * 24, (31+28+5) * 24)]
+#print(I.I_D[step], I.I_s[step], I.I_r[step], I.I_w[step], I.GT[step], I.GA[step])
+#step = 4983
+#print(sun.h[step], sun.A[step], I.I_w[step], I_dn[step], I.I_D[step])
+print(I.I_w[step])
 '''
-
-
-
 
 
 

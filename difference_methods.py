@@ -147,7 +147,17 @@ def diff_ux(material, d, m, dt, alpha0, alpham):
                        "carpet": 0.08,
                        "stonebodo": 0.17,
                        "air":1,
-                       "wood_m":0.15}
+                       "wood_m":0.15,
+                       "plasterboard":0.16,
+                       "fiberglass_quilt":0.04,
+                       "wood_siding":0.14,
+                       "roof_deck":0.14,
+                       "timber_flooring":0.14,
+                       "insulation":0.04,
+                       "concrete_block":0.51,
+                       "foam_insulation":0.04,
+                       "concrete_slab":1.13
+                       }
     material_c_rho = {"concrete": 1934,
                       "wood":716,
                       "rock_wool": 84,
@@ -155,7 +165,17 @@ def diff_ux(material, d, m, dt, alpha0, alpham):
                       "carpet": 318,
                       "stonebodo": 1030,
                       "air":1,
-                      "wood_m":1000}
+                      "wood_m":1000,
+                      "plasterboard":798,
+                      "fiberglass_quilt":10.08,
+                      "wood_siding":477,
+                      "roof_deck":477,
+                      "timber_flooring":780,
+                      "insulation":9999,
+                      "concrete_block":1400,
+                      "foam_insulation":14,
+                      "concrete_slab":1400
+                      }
     r_air = 0.086
 
     # 网格尺寸，物性参数
@@ -206,6 +226,6 @@ A2_d = [0.150, 0.050, 0, 0.002]
 A2_m = [7, 2, 1, 1]
 print(diff_ux(A2_material, A2_d, A2_m, 60, 9.3, 23))
 
-print(diff_ux(["wood", "concrete", "rock_wool"], [0.025, 0.120, 0.050], [1, 2, 1], 180, 9.3, 9.3))
+a,b,c = diff_ux(["wood", "concrete", "rock_wool"], [0.025, 0.120, 0.050], [1, 2, 1], 3600, 9.3, 9.3)
+print(np.dot(c[0],[0,1,1,0,0]))
 '''
-

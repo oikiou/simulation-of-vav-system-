@@ -31,3 +31,16 @@ def weather_m():
                     }
     return weather_data
 
+def weather_ashrae():
+    data = np.array(np.loadtxt(open(r"DRYCOLD01.csv", "r"), delimiter=",", skiprows=1))
+    weather_data = {"outdoor_temp":data[:,0],
+                    "x":data[:,1],
+                    "I_dn":data[:,2],
+                    "I_sky":data[:,3],
+                    "RN":data[:,4]
+                    }
+    return weather_data
+
+
+a = weather_ashrae()
+#print(a[0,0])
