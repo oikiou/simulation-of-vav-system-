@@ -148,8 +148,8 @@ class Schedule(object):
     sche_year_1 = sche * 365
     sche_year_2 = [1] * 8760
 
-sche_year = Schedule().sche_year_1
-#sche_year = Schedule().sche_year_2
+#sche_year = Schedule().sche_year_1
+sche_year = Schedule().sche_year_2
 
 class Humans(object):
     humans = []
@@ -236,6 +236,8 @@ class Room(object):
         self.indoor_temp = 0
         for x in self.walls:
             x.tn = np.ones(np.array(x.ul).shape) * self.indoor_temp
+            if x.wall_type in ('ground'):
+                x.tn = np.ones(np.array(x.ul).shape) * 10
 
     # 室内发热成分
     def heat_generate(self, step):

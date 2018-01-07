@@ -171,7 +171,7 @@ def diff_ux(material, d, m, dt, alpha0, alpham):
                       "wood_siding":477,
                       "roof_deck":477,
                       "timber_flooring":780,
-                      "insulation":9999,
+                      "insulation":0.01,  #!!!
                       "concrete_block":1400,
                       "foam_insulation":14,
                       "concrete_slab":1400

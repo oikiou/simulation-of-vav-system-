@@ -273,12 +273,12 @@ class Room(object):
 
     # 计算indoor_temp
     def indoor_temp_cal(self, step):
-        temp0 = self.indoor_temp
+        self.temp0 = self.indoor_temp
         self.CA = self.Arm * alpha_i * kc * self.AFT / self.SDT
         self.BRM = self.RMDT + self.AR + c_air * self.Go
         self.BRC = self.RMDT * self.indoor_temp + self.CA + c_air * self.Go * outdoor_temp[step] + self.HG_c
         self.indoor_temp = self.BRC / self.BRM
-        self.delta_indoor_temp = self.indoor_temp - temp0
+        self.delta_indoor_temp = self.indoor_temp - self.temp0
         return self
 
     # 后处理
@@ -286,13 +286,15 @@ class Room(object):
         self.T_mrt = (kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
         for x in self.windows:
             x.T_sn = self.indoor_temp - (self.indoor_temp - outdoor_temp[step]) * x.k / alpha_i
-            x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+            #x.q0 = - alpha_i * (self.indoor_temp - x.T_sn) * x.area
+            x.q0 = x.area * (alpha_i * kc * (x.T_sn - self.temp0) + alpha_i * kr * (x.T_sn - self.T_mrt) - x.rs)
         for x in self.walls:
             x.tn[0] += x.ul[0] * (kc * self.indoor_temp + kr * self.T_mrt + x.rs / alpha_i)
             x.tn[-1] += x.ur[-1] * x.te
             x.tn = np.dot(x.ux, x.tn)
             x.T_sn = x.tn[0]
-            x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+            #x.q0 = - alpha_i * (self.indoor_temp - x.T_sn) * x.area
+            x.q0 = x.area * (alpha_i * kc * (x.T_sn - self.temp0) + alpha_i * kr * (x.T_sn - self.T_mrt) - x.rs)
         return self
 
 
@@ -303,22 +305,38 @@ room_2 = Room('room_2', 129.6, 0, 0.5)
 # 循环开始
 output = []
 for step in range(8760):
+    out0 = []
     room_2 = room_2.heat_generate(step)
     room_2 = room_2.cf_cal(step)
     room_2 = room_2.te_indoor(step)
     room_2 = room_2.indoor_temp_cal(step)
     room_2 = room_2.after_cal(step)
-    output.append(room_2.indoor_temp)
 
-#np.savetxt('result_600.csv', output, delimiter = ',', fmt="%.4f")
+    output.append(room_2.indoor_temp)
+    '''
+    #输出
+    out0.append(room_2.indoor_temp)
+    for x in room_2.envelope:
+        out0.append(x.q0)
+    out0.append(room_2.envelope[0].GT[step]) # 太阳透过
+    out0.append(c_air * room_2.Go * (outdoor_temp[step] - room_2.temp0))
+    output.append(out0)
+
+np.array(output).reshape(-1,10)
+'''
+np.savetxt('result_600.csv', output, delimiter = ',', fmt="%.4f")
 '''
 plt.plot(outdoor_temp[72:96])
 plt.plot(output[72:96])
 plt.show()
-'''
+
 plt.plot(outdoor_temp[4968:4992])
 plt.plot(output[4968:4992])
 plt.show()
 
 
+plt.plot(outdoor_temp)
+plt.plot(output)
+plt.show()
+'''
 
