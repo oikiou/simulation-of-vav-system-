@@ -212,6 +212,11 @@ class Room(object):
         self.VOL = vol  # 室容积
         self.CPF = cpf  # 热容量
         self.n_air = n_air  # 换气次数
+        self.load_sum_s = 0
+        self.load_sum_w = 0
+        self.load_max_s = 0
+        self.load_max_w = 0
+
         self.windows = [x for x in Windows.windows if x.room == self.room_name]  # 找窗
         self.walls = [x for x in Walls.walls if x.room == self.room_name]  # 找墙
         self.envelope = self.windows + self.walls  # 围护
@@ -294,11 +299,16 @@ class Room(object):
         self.BRC = self.RMDT * self.indoor_temp + self.CA + c_air * self.Go * outdoor_temp[step] + self.HG_c
         temp0 = self.BRC / self.BRM
         if temp0 <= 20:
-            self.load = (- self.BRC + self.BRM * 20) / 1000
+            self.load = (self.BRC - self.BRM * 20) / 1000
             self.indoor_temp = 20
+            self.load_sum_w += self.load
+            if step>24:  # 第一天没稳定
+                self.load_max_w = min(self.load_max_w, self.load)
         elif temp0 >= 27:
             self.load = (self.BRC - self.BRM * 27) / 1000
             self.indoor_temp = 27
+            self.load_sum_s += self.load
+            self.load_max_s = max(self.load_max_s, self.load)
         else:
             self.load = 0
             self.indoor_temp = temp0
@@ -352,7 +362,10 @@ for step in range(8760):
 
 output = np.array(output).reshape((-1,2))
 
-np.savetxt('result_900_load.csv', output, delimiter = ',', fmt="%.4f")
+#np.savetxt('result_900_load.csv', output, delimiter = ',', fmt="%.4f")
+print(room_2.load_sum_w, room_2.load_sum_s)
+print(room_2.load_max_w, room_2.load_max_s)
+
 '''
 plt.plot(outdoor_temp[72:96])
 plt.plot(output[72:96])

@@ -35,21 +35,6 @@ outdoor_temp = weather_data["outdoor_temp"]
 
 # 1.1 壁体
 # 定义窗
-'''
-def windows_cal_bn_tau_k(tau, rho, lamb, d, r_air, alpha_o, alpha_i):
-    # 从外至内
-    tau = [0.86156, 0.86156]
-    rho = [0.07846, 0.07846]
-    lamb = [1.06, 1.06]
-    d = [0.003175, 0.003175]
-    r_air = [0.1588]
-    alpha_o = 21
-    alpha_i = 8.29
-    k = np.multiply(np.divide(1, lamb), d) + sum(r_air) + 1 / alpha_i + 1 / alpha_o
-'''
-
-
-
 class Windows(sun_class.Face):
     sum_area = 0
     windows = []
@@ -213,6 +198,11 @@ class Room(object):
         self.VOL = vol  # 室容积
         self.CPF = cpf  # 热容量
         self.n_air = n_air  # 换气次数
+        self.load_sum_s = 0
+        self.load_sum_w = 0
+        self.load_max_s = 0
+        self.load_max_w = 0
+
         self.windows = [x for x in Windows.windows if x.room == self.room_name]  # 找窗
         self.walls = [x for x in Walls.walls if x.room == self.room_name]  # 找墙
         self.envelope = self.windows + self.walls  # 围护
@@ -297,9 +287,14 @@ class Room(object):
         if temp0 <= 20:
             self.load = (self.BRC - self.BRM * 20) / 1000
             self.indoor_temp = 20
+            self.load_sum_w += self.load
+            if step>24:  # 第一天没稳定
+                self.load_max_w = min(self.load_max_w, self.load)
         elif temp0 >= 27:
             self.load = (self.BRC - self.BRM * 27) / 1000
             self.indoor_temp = 27
+            self.load_sum_s += self.load
+            self.load_max_s = max(self.load_max_s, self.load)
         else:
             self.load = 0
             self.indoor_temp = temp0
@@ -347,13 +342,17 @@ room_2 = Room('room_2', 129.6, 0, 0.5)
 # 循环开始
 output = []
 for step in range(8760):
+
     room_2 = room_2.cycle_load(step)
     output.append(room_2.indoor_temp)
     output.append(room_2.load)
 
 output = np.array(output).reshape((-1,2))
 
-np.savetxt('result_600_load.csv', output, delimiter = ',', fmt="%.4f")
+#np.savetxt('result_600_load.csv', output, delimiter = ',', fmt="%.4f")
+print(room_2.load_sum_w, room_2.load_sum_s)
+print(room_2.load_max_w, room_2.load_max_s)
+
 '''
 plt.plot(outdoor_temp[72:96])
 plt.plot(output[72:96])
