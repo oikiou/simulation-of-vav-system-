@@ -4,6 +4,8 @@ import difference_methods
 import readcsv
 import sun_class
 import matplotlib.pyplot as plt
+
+
 ## 热负荷计算programme
 
 # 1. input
@@ -106,10 +108,12 @@ class Walls(sun_class.Face):
         self.alpha_0 = alpha_i  # 内表面换热系数
 
         # 外表面换热系数
-        if self.wall_type in ('outer_wall', 'roof', 'ground'):
+        if self.wall_type in ('outer_wall', 'roof'):
             self.alpha_m = alpha_o
         elif self.wall_type in ('inner_wall', 'floor', 'ceiling'):
             self.alpha_m = alpha_i
+        elif self.wall_type in ('ground'):
+            self.alpha_m = 9999
 
         # 差分法调用
         self.ul, self.ur, self.ux = difference_methods.diff_ux(self.material, self.depth, self.grid, dt, self.alpha_0, self.alpha_m)
@@ -140,7 +144,7 @@ wall_6 = Walls(16.2, 'room_2', 'outer_wall', ["concrete_block", "foam_insulation
 wall_7 = Walls(21.6, 'room_2', 'outer_wall', ["concrete_block", "foam_insulation", "wood_siding"], [0.1, 0.0615, 0.009], -180, 90, [12, 10, 2])
 wall_8 = Walls(16.2, 'room_2', 'outer_wall', ["concrete_block", "foam_insulation", "wood_siding"], [0.1, 0.0615, 0.009], 90, 90, [12, 10, 2])
 wall_9 = Walls(48, 'room_2', 'roof', ["plasterboard", "fiberglass_quilt", "roof_deck"], [0.01, 0.1118, 0.019], 0, 0, [2, 10, 4])
-wall_10 = Walls(48, 'room_2', 'ground', ["concrete_slab", "insulation"], [0.080, 1.007], 0, 0, [12, 5])
+wall_10 = Walls(48, 'room_2', 'ground', ["concrete_slab", "insulation"], [0.080, 1.007], 0, 0, [12, 15])
 
 
 class Schedule(object):
@@ -288,13 +292,22 @@ class Room(object):
         self.T_mrt = (kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
         for x in self.windows:
             x.T_sn = self.indoor_temp - (self.indoor_temp - outdoor_temp[step]) * x.k / alpha_i
-            x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+            #x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
         for x in self.walls:
             x.tn[0] += x.ul[0] * (kc * self.indoor_temp + kr * self.T_mrt + x.rs / alpha_i)
             x.tn[-1] += x.ur[-1] * x.te
             x.tn = np.dot(x.ux, x.tn)
             x.T_sn = x.tn[0]
-            x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+            #x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+        return self
+
+    # 循环
+    def cycle_natural_indoor_temp(self,step):
+        self = self.heat_generate(step)
+        self = self.cf_cal(step)
+        self = self.te_indoor(step)
+        self = self.indoor_temp_cal(step)
+        self = self.after_cal(step)
         return self
 
 
@@ -305,14 +318,10 @@ room_2 = Room('room_2', 129.6, 0, 0.5)
 # 循环开始
 output = []
 for step in range(8760):
-    room_2 = room_2.heat_generate(step)
-    room_2 = room_2.cf_cal(step)
-    room_2 = room_2.te_indoor(step)
-    room_2 = room_2.indoor_temp_cal(step)
-    room_2 = room_2.after_cal(step)
+    room_2 = room_2.cycle_natural_indoor_temp(step)
     output.append(room_2.indoor_temp)
 
-#np.savetxt('result_900.csv', output, delimiter = ',', fmt="%.4f")
+np.savetxt('result_900.csv', output, delimiter = ',', fmt="%.4f")
 '''
 plt.plot(outdoor_temp[72:96])
 plt.plot(output[72:96])

@@ -4,6 +4,8 @@ import difference_methods
 import readcsv
 import sun_class
 import matplotlib.pyplot as plt
+
+
 ## 热负荷计算programme
 
 # 1. input
@@ -45,6 +47,7 @@ def windows_cal_bn_tau_k(tau, rho, lamb, d, r_air, alpha_o, alpha_i):
     alpha_i = 8.29
     k = np.multiply(np.divide(1, lamb), d) + sum(r_air) + 1 / alpha_i + 1 / alpha_o
 '''
+
 
 
 class Windows(sun_class.Face):
@@ -275,30 +278,65 @@ class Room(object):
             self.AFT += x.aft
         return self
 
-    # 计算indoor_temp
+    # 计算indoor_temp  自然室温
     def indoor_temp_cal(self, step):
-        self.temp0 = self.indoor_temp
+        temp0 = self.indoor_temp
         self.CA = self.Arm * alpha_i * kc * self.AFT / self.SDT
         self.BRM = self.RMDT + self.AR + c_air * self.Go
         self.BRC = self.RMDT * self.indoor_temp + self.CA + c_air * self.Go * outdoor_temp[step] + self.HG_c
         self.indoor_temp = self.BRC / self.BRM
-        self.delta_indoor_temp = self.indoor_temp - self.temp0
+        self.delta_indoor_temp = self.indoor_temp - temp0
         return self
+
+    # 计算负荷 有空调设备
+    def load_cal(self, step):
+        self.CA = self.Arm * alpha_i * kc * self.AFT / self.SDT
+        self.BRM = self.RMDT + self.AR + c_air * self.Go
+        self.BRC = self.RMDT * self.indoor_temp + self.CA + c_air * self.Go * outdoor_temp[step] + self.HG_c
+        temp0 = self.BRC / self.BRM
+        if temp0 <= 20:
+            self.load = (self.BRC - self.BRM * 20) / 1000
+            self.indoor_temp = 20
+        elif temp0 >= 27:
+            self.load = (self.BRC - self.BRM * 27) / 1000
+            self.indoor_temp = 27
+        else:
+            self.load = 0
+            self.indoor_temp = temp0
+        self.delta_indoor_temp = self.indoor_temp - temp0
+        return self
+
 
     # 后处理
     def after_cal(self, step):
         self.T_mrt = (kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
         for x in self.windows:
             x.T_sn = self.indoor_temp - (self.indoor_temp - outdoor_temp[step]) * x.k / alpha_i
-            #x.q0 = - alpha_i * (self.indoor_temp - x.T_sn) * x.area
-            #x.q0 = x.area * (alpha_i * kc * (x.T_sn - self.temp0) + alpha_i * kr * (x.T_sn - self.T_mrt) - x.rs)
+            #x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
         for x in self.walls:
             x.tn[0] += x.ul[0] * (kc * self.indoor_temp + kr * self.T_mrt + x.rs / alpha_i)
             x.tn[-1] += x.ur[-1] * x.te
             x.tn = np.dot(x.ux, x.tn)
             x.T_sn = x.tn[0]
-            #x.q0 = - alpha_i * (self.indoor_temp - x.T_sn) * x.area
-            #x.q0 = x.area * (alpha_i * kc * (x.T_sn - self.temp0) + alpha_i * kr * (x.T_sn - self.T_mrt) - x.rs)
+            #x.q0 = alpha_i * (self.indoor_temp - x.T_sn)
+        return self
+
+    # 循环
+    def cycle_natural_indoor_temp(self, step):
+        self = self.heat_generate(step)
+        self = self.cf_cal(step)
+        self = self.te_indoor(step)
+        self = self.indoor_temp_cal(step)
+        self = self.after_cal(step)
+        return self
+
+    # 循环 有空调设备
+    def cycle_load(self, step):
+        self = self.heat_generate(step)
+        self = self.cf_cal(step)
+        self = self.te_indoor(step)
+        self = self.load_cal(step)
+        self = self.after_cal(step)
         return self
 
 
@@ -309,26 +347,13 @@ room_2 = Room('room_2', 129.6, 0, 0.5)
 # 循环开始
 output = []
 for step in range(8760):
-    out0 = []
-    room_2 = room_2.heat_generate(step)
-    room_2 = room_2.cf_cal(step)
-    room_2 = room_2.te_indoor(step)
-    room_2 = room_2.indoor_temp_cal(step)
-    room_2 = room_2.after_cal(step)
-
+    room_2 = room_2.cycle_load(step)
     output.append(room_2.indoor_temp)
-    '''
-    #输出
-    out0.append(room_2.indoor_temp)
-    for x in room_2.envelope:
-        out0.append(x.q0)
-    out0.append(room_2.envelope[0].GT[step]) # 太阳透过
-    out0.append(c_air * room_2.Go * (outdoor_temp[step] - room_2.temp0))
-    output.append(out0)
+    output.append(room_2.load)
 
-np.array(output).reshape(-1,10)
-'''
-np.savetxt('result_600.csv', output, delimiter = ',', fmt="%.4f")
+output = np.array(output).reshape((-1,2))
+
+np.savetxt('result_600_load.csv', output, delimiter = ',', fmt="%.4f")
 '''
 plt.plot(outdoor_temp[72:96])
 plt.plot(output[72:96])
@@ -337,10 +362,9 @@ plt.show()
 plt.plot(outdoor_temp[4968:4992])
 plt.plot(output[4968:4992])
 plt.show()
-
-
+'''
 plt.plot(outdoor_temp)
 plt.plot(output)
 plt.show()
-'''
+
 
