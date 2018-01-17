@@ -5,7 +5,7 @@ np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 
 
 def diff_m(d, m, dt, indoor_t, outdoor_t, time, _lambda, _c_rho):
-    r = [1/9] + [d/m/_lambda] * m + [1/9]
+    r = [1/9] + [d/m/_lambda] * m + [1/23]
     cap = [0] + [_c_rho*d/m*1000] * m + [0]
     ul = [dt / 0.5 / (cap[i] + cap[i + 1]) / r[i] for i in range(m + 1)]
     ur = [dt / 0.5 / (cap[i] + cap[i + 1]) / r[i + 1] for i in range(m + 1)]
