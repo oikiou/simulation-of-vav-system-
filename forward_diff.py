@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
-np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
+np.set_printoptions(formatter={'float': '{: 0.4f}'.format})
 
 
 def diff_m(d, m, dt, indoor_t, outdoor_t, time, _lambda, _c_rho):

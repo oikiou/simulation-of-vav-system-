@@ -37,6 +37,7 @@ class Cities(object):
 tokyo = Cities('tokyo', 35.68, 139.77, 9)
 usco = Cities('USCO', 39.8, -104.9, -6)
 yamaguchi = Cities('yamaguchi', 34, 131.5, 9)
+yamaguchi = Cities('yamaguchi', 43.15, 141.23, 9)
 
 
 # 太阳方位角和高度角的计算
@@ -74,15 +75,15 @@ class Sun(object):
         if isinstance(self.A, np.ndarray):
             self.h[self.h < 0] = 0
             self.A[self.h == 0] = 0
-        self.h[self.A > 0] = 0
-
 
 sun = Sun(yamaguchi)  # 对于一栋建筑而言，有且只有一个地理位置，故只有一个太阳高度和方位的list
 # 类似于气象参数，I_DN I_SKY 一个项目只有一个
 # print(sun.h, sun.A)
 
-plt.plot(sun.A)
-plt.show()
+print(sun.A[0:24])
+print(sun.h[0:24])
+#plt.plot(sun.A)
+#plt.show()
 
 
 class Face(object):
@@ -120,6 +121,8 @@ class Face(object):
         self.I_r = np.multiply(self.I_hol, rho_g * self.Fg)
         self.I_w = self.I_D + self.I_s + self.I_r
 
+        self.I_w[sun.A < -10] = 0
+
         return self
 
     # 计算日照得热
@@ -154,6 +157,7 @@ m10 = sum(I.I_w[24*(31+28+31+30+31+30+31+31+30):24*(31+28+31+30+31+30+31+31+30+3
 m11 = sum(I.I_w[24*(31+28+31+30+31+30+31+31+30+31):24*(31+28+31+30+31+30+31+31+30+31+30)])
 m12 = sum(I.I_w[24*(31+28+31+30+31+30+31+31+30+31+30):24*(31+28+31+30+31+30+31+31+30+31+30+31)-1])
 month = [m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12]
+month = np.divide(np.array(month), 1000)
 print(month)
 plt.plot(month)
 plt.show()
