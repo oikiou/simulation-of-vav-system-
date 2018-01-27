@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import matplotlib.pyplot as plt
+"""
+全年的任意时间间隔的非定常室内负荷及自然室温的计算
+可以在此基础上添加空调设备进行全年的能耗模拟
+
+需要准备的参数
+1. 气象参数（全年8760小时的外气温度[℃]，绝对湿度[kg/kg]，法线面直达日射[W/m2]，水平面天空日射[W/m2]，夜间放射[W/m2]）
+2. 项目参数（城市，经度，纬度，时区[h]，地面反射率，长波辐射率，外表面日射吸收率）
+3. 围护结构参数（窗（面积[m2]，所属，方位角[deg]，倾斜角[deg]，透光面积[m2]，透过率，综合吸收率，贯流传热[W/m2K]）,
+                 墙（面积[m2]，所属，邻室，材料[list]，厚度[list[m]]，方位角[deg]，倾斜角[deg]，网格划分[list]））
+4. 房间参数（日程，人[W]，照明[W]，设备[W]，室容积[m3]，家具热容量[kJ/K]，换气次数[/h]）
+
+使用流程和实例在最后
+"""
 
 
 # 气象参数
@@ -14,8 +28,6 @@ class WeatherData(object):
         self.RN = self.data[:, 4]
         self.dt = dt
 
-        "对所有的数据的时间间隔进行变化"
-
         def dt_trans_linear(data, small_dt):
             """定义线性差分，从3600到小间隔"""
             result = list(np.linspace(data[-1], data[0], 3600 // small_dt + 1)[:-1])
@@ -23,13 +35,19 @@ class WeatherData(object):
                 result.extend(list(np.linspace(data[i], data[i + 1], 3600 // small_dt + 1)[:-1]))
             return result
 
-        self.outdoor_temp, self.outdoor_ab_humidity, self.I_dn, self.I_sky, self.RN = map(dt_trans_linear,
-                            [self.outdoor_temp, self.outdoor_ab_humidity, self.I_dn, self.I_sky, self.RN], [self.dt] * 5)
+        # map线性差分
+        (self.outdoor_temp, self.outdoor_ab_humidity, self.I_dn, self.I_sky,
+         self.RN) = map(dt_trans_linear, [self.outdoor_temp, self.outdoor_ab_humidity,
+                                          self.I_dn, self.I_sky, self.RN], [self.dt] * 5)
 
 
 # 角度换算
-d2r = lambda d: np.divide(np.multiply(3.14159265, d), 180)
-r2d = lambda r: np.divide(np.multiply(180, r), 3.14159265)
+def d2r(d):
+    return np.divide(np.multiply(3.14159265, d), 180)
+
+
+def r2d(r):
+    return np.divide(np.multiply(180, r), 3.14159265)
 
 
 # 项目信息
@@ -71,13 +89,14 @@ class Project(object):
         self.cos_delta = np.cos(np.arcsin(self.sin_delta))
 
         # 计算太阳高度角
-        self.sin_h = np.multiply(self.sin_latitude, self.sin_delta) + \
-                     np.multiply(np.multiply(self.cos_latitude, self.cos_delta), np.cos(d2r(self.omega)))
+        self.sin_h = (np.multiply(self.sin_latitude, self.sin_delta) +
+                      np.multiply(np.multiply(self.cos_latitude, self.cos_delta), np.cos(d2r(self.omega))))
         self.h = r2d(np.arcsin(self.sin_h))
         self.cos_h = np.cos(np.arcsin(self.sin_h))
 
         # 计算太阳方位角
-        self.cos_A = np.divide(np.multiply(self.sin_h, self.sin_latitude) - self.sin_delta, np.multiply(self.cos_h, self.cos_latitude))
+        self.cos_A = np.divide(np.multiply(self.sin_h, self.sin_latitude) - self.sin_delta,
+                               np.multiply(self.cos_h, self.cos_latitude))
         self.A = r2d(np.multiply(np.sign(self.omega), np.arccos(self.cos_A)))
         self.sin_A = np.sin(d2r(self.A))
         if isinstance(self.A, np.ndarray):
@@ -142,13 +161,14 @@ class Windows(Face):
         self.anf = self.area * self.FI
 
         # 日射热取得
-        self.CI_D = 3.4167 * self.cos_theta - 4.3890 * self.cos_theta ** 2 + 2.4948 * self.cos_theta ** 3 - 0.5224 * self.cos_theta ** 4
+        self.CI_D = (3.4167 * self.cos_theta - 4.3890 * self.cos_theta ** 2 + 2.4948 *
+                     self.cos_theta ** 3 - 0.5224 * self.cos_theta ** 4)
         self.GT = self.glass_area * self.tau * (self.CI_D * self.I_D + 0.91 * (self.I_r + self.I_s))
         self.GA = self.glass_area * self.bn * (self.CI_D * self.I_D + 0.91 * (self.I_r + self.I_s))
 
         # 相当外气温度
-        self.te_8760 = self.GA / self.area / self.k - self.project.epsilon * self.Fs * \
-                        np.array(self.project.weather_data.RN) / self.alpha_m + self.project.weather_data.outdoor_temp
+        self.te_8760 = (self.GA / self.area / self.k - self.project.epsilon * self.Fs *
+                        np.array(self.project.weather_data.RN) / self.alpha_m + self.project.weather_data.outdoor_temp)
 
         Windows.windows.append(self)
 
@@ -182,7 +202,8 @@ class Walls(Face):
         self.cap = [0]
         for i in range(len(self.material)):
             self.r.extend([self.depth[i] / self.grid[i] / material_lambda_c_rho[self.material[i]][0]] * self.grid[i])
-            self.cap.extend([self.depth[i] / self.grid[i] * material_lambda_c_rho[self.material[i]][1] * 1000] * self.grid[i])
+            self.cap.extend([self.depth[i] / self.grid[i] *
+                             material_lambda_c_rho[self.material[i]][1] * 1000] * self.grid[i])
         self.r.append(1 / self.alpha_m)
         self.cap.append(0)
 
@@ -203,8 +224,9 @@ class Walls(Face):
 
         # 相当外气温度
         if self.wall_type in ('outer_wall', 'roof'):
-            self.te_8760 = (self.project.a_s * self.I_w - self.project.epsilon * self.Fs *
-                            np.array(self.project.weather_data.RN)) / self.alpha_m + self.project.weather_data.outdoor_temp
+            self.te_8760 = ((self.project.a_s * self.I_w - self.project.epsilon * self.Fs *
+                            np.array(self.project.weather_data.RN)) / self.alpha_m
+                            + self.project.weather_data.outdoor_temp)
         elif self.wall_type in 'ground':
             self.te_8760 = [10] * (8760 * 3600 // self.project.dt)
 
@@ -231,6 +253,7 @@ class Humans(object):
         Humans.humans.append(self)
 
     def load_human(self, indoor_temp):
+        """人体发热量和室内温度有关"""
         self.H_s = self.H_S24 - self.H_d * (indoor_temp - 24)
         self.H_l = self.H_T - self.H_s
         self.Q_HS = self.N_H * self.H_s
@@ -255,6 +278,7 @@ class Equipments(object):
     equipments = []
 
     def __init__(self, room, ws, wl):
+        """设备有显热和潜热"""
         self.room = room
         self.W_AS = ws
         self.W_AL = wl
@@ -276,6 +300,7 @@ class Rooms(object):
         self.sche = sche
         self.project = project
 
+        # 定义变量
         self.load_sum_s = 0
         self.load_sum_w = 0
         self.load_max_s = 0
@@ -286,7 +311,12 @@ class Rooms(object):
         self.HLG = 0
         self.GT = 0
         self.AFT = 0
+        self.CA = 0
+        self.BRM = 0
+        self.BRC = 0
+        self.T_mrt = 0
 
+        # 房间构成
         self.windows = [x for x in Windows.windows if x.room == self.room_name]
         self.walls = [x for x in Walls.walls if x.room == self.room_name]
         self.envelope = self.windows + self.walls
@@ -294,6 +324,7 @@ class Rooms(object):
         self.lights = [x for x in Lights.lights if x.room == self.room_name]
         self.equipments = [x for x in Equipments.equipments if x.room == self.room_name]
 
+        # 房间固有属性
         self.Arm = sum([x.area for x in self.envelope])  # 内表面积和
         self.ANF = sum([x.anf for x in self.envelope])
         self.SDT = self.Arm - self.project.kr * self.ANF
@@ -306,7 +337,10 @@ class Rooms(object):
             else:
                 x.sn = 0.7 * x.area / self.Arm
 
-        self.RMDT = (self.project.c_air * self.project.rho_air * self.VOL + self.CPF * 1000)
+        # 热容
+        self.RMDT = (self.project.c_air * self.project.rho_air * self.VOL + self.CPF * 1000) / self.project.dt
+
+        # 换气量
         self.Go = self.project.rho_air * self.n_air * self.VOL / 3600
 
         # 初始条件
@@ -316,7 +350,6 @@ class Rooms(object):
             x.tn = np.ones(np.array(x.ul).shape) * self.indoor_temp
             if x.wall_type is 'ground':
                 x.tn = np.ones(np.array(x.ul).shape) * self.ground_temp
-
 
     # 循环接口
     def load_cycle(self, step):
@@ -357,27 +390,78 @@ class Rooms(object):
 
         # 相当外气温度（注意邻室）
         for x in self.windows:
+            x.te = x.te_8760[step]
+        for x in self.walls:
+            if x.wall_type in ('outer_wall', 'roof', 'ground'):
+                x.te = x.te_8760[step]
+            if x.wall_type in ('floor', 'ceiling'):
+                x.te = self.indoor_temp
+            if x.wall_type in 'inner_wall':
+                if x.roomby:
+                    for y in Rooms.rooms:
+                        if x.roomby == y.room_name:
+                            x.te = 0.7 * y.indoor_temp + 0.3 * self.project.weather_data.outdoor_temp[step]
+                else:
+                    x.te = 0.7 * self.indoor_temp + 0.3 * self.project.weather_data.outdoor_temp[step]
+
+        for x in self.envelope:
+            x.aft = (x.FO * x.te + x.FI * x.rs / x.alpha_0 + x.cf) * x.area
+            self.AFT += x.aft
+
+        # BRM,BRC
+        self.CA = self.Arm * self.project.alpha_i * self.project.kc * self.AFT / self.SDT
+        self.BRM = self.RMDT + self.AR + self.project.c_air * self.Go
+        self.BRC = (self.RMDT * self.indoor_temp + self.CA + self.project.c_air
+                    * self.Go * self.project.weather_data.outdoor_temp[step] + self.HG_c)
+        self.indoor_temp = self.BRC / self.BRM
+
+        # 后处理
+        self.T_mrt = (self.project.kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
+        for x in self.windows:
+            x.T_sn = self.indoor_temp - (self.indoor_temp - self.project.weather_data.outdoor_temp[step]) \
+                                        * x.k / x.alpha_0
+        for x in self.walls:
+            x.tn[0] += x.ul[0] * (self.project.kc * self.indoor_temp + self.project.kr
+                                  * self.T_mrt + x.rs / x.alpha_0)
+            x.tn[-1] += x.ur[-1] * x.te
+            x.tn = np.dot(x.ux, x.tn)
+            x.T_sn = x.tn[0]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 使用流程（实例）
+# 1. 读取气象参数
+# 气象参数从csv文件读取，不要有数字以外的内容，数据从第二行开始，一共（8760行 + 1行） * 5列
+# 360的单位是秒，代表时间间隔，理论上可以取任意小于等于3600的正数，但最好是能够被3600整除
+wea = WeatherData("input_data/DRYCOLD01.csv", 360)
+# 2. 输入项目信息
+# 城市，经度，纬度，时区[h]，地面反射率，长波辐射率，外表面日射吸收率，气象参数
+project_1 = Project('USCO', 39.8, -104.9, -6, 0.2, 0.9, 0.6, wea)
+# 3. 输入围护结构参数
+# 面积[m2]，所属，方位角[deg]，倾斜角[deg]，透光面积[m2]，透过率，综合吸收率，贯流传热[W/m2K]，项目信息
+window_1 = Windows(12, 'room_1', 0, 90, 12, 0.7469, 0.04355, 3, project_1)
+# 面积[m2]，所属，邻室，材料[list]，厚度[list[m]]，方位角[deg]，倾斜角[deg]，网格划分[list]，项目信息
+wall_1 = Walls(9.6, 'room_1', 0, 'outer_wall', ["concrete_block", "foam_insulation", "wood_siding"],
+               [0.1, 0.0615, 0.009], 0, 90, [12, 10, 2], project_1)
+wall_2 = Walls(16.2, 'room_1', 0, 'outer_wall', ["concrete_block", "foam_insulation", "wood_siding"],
+               [0.1, 0.0615, 0.009], -90, 90, [12, 10, 2], project_1)
+wall_3 = Walls(21.6, 'room_1', 0, 'outer_wall', ["concrete_block", "foam_insulation", "wood_siding"],
+               [0.1, 0.0615, 0.009], -180, 90, [12, 10, 2], project_1)
+wall_4 = Walls(16.2, 'room_1', 0, 'outer_wall', ["concrete_block", "foam_insulation", "wood_siding"],
+               [0.1, 0.0615, 0.009], 90, 90, [12, 10, 2], project_1)
+wall_5 = Walls(48, 'room_1', 0, 'roof', ["plasterboard", "fiberglass_quilt", "roof_deck"],
+               [0.01, 0.1118, 0.019], 0, 0, [2, 10, 4], project_1)
+wall_6 = Walls(48, 'room_1', 0, 'ground', ["concrete_slab", "insulation"], [0.080, 1.007], 0, 0, [12, 15], project_1)
+# 4. 输入房间参数
+# 日程 一个list，()中是长度
+schedule_1 = [1] * (8760 * 3600 // project_1.dt)
+# 所属，发热量
+light_1 = Lights('room_1', 200)
+# 房间名，室容积[m3]，家具热容量[kJ/K]，换气次数[/h]，日程，项目信息
+room_1 = Rooms('room_1', 129.6, 0, 0.5, schedule_1, project_1)
+# 5. 循环开始
+output = []
+for cal_step in range(8760 * 3600 // project_1.dt):
+    room_1.load_cycle(cal_step)  # 循环方法
+    output.append(room_1.indoor_temp)
+plt.plot(output)
+plt.show()
