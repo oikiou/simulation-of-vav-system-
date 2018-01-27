@@ -71,6 +71,7 @@ class Project(object):
         self.rho_air = 1.2
         self.alpha_i = 8.29
         self.alpha_o = 29.3
+        self.r = 2501000
 
         # 日照
         self.hours = np.linspace(1, 8760, 8760 * 3600 // self.dt)
@@ -314,6 +315,8 @@ class Rooms(object):
         self.CA = 0
         self.BRM = 0
         self.BRC = 0
+        self.BRMX = 0
+        self.BRCX = 0
         self.T_mrt = 0
 
         # 房间构成
@@ -337,14 +340,16 @@ class Rooms(object):
             else:
                 x.sn = 0.7 * x.area / self.Arm
 
-        # 热容
+        # 热容 湿容
         self.RMDT = (self.project.c_air * self.project.rho_air * self.VOL + self.CPF * 1000) / self.project.dt
+        self.RMDTX = (self.project.rho_air * self.VOL / self.project.dt)
 
         # 换气量
         self.Go = self.project.rho_air * self.n_air * self.VOL / 3600
 
         # 初始条件
         self.indoor_temp = 0
+        self.indoor_humidity = 0
         self.ground_temp = 10
         for x in self.walls:
             x.tn = np.ones(np.array(x.ul).shape) * self.indoor_temp
@@ -413,7 +418,11 @@ class Rooms(object):
         self.BRM = self.RMDT + self.AR + self.project.c_air * self.Go
         self.BRC = (self.RMDT * self.indoor_temp + self.CA + self.project.c_air
                     * self.Go * self.project.weather_data.outdoor_temp[step] + self.HG_c)
+        self.BRMX = self.RMDTX + self.Go
+        self.BRCX = (self.RMDTX * self.indoor_humidity + self.Go * self.project.weather_data.outdoor_ab_humidity[step]
+                     + self.HLG / self.project.r)
         self.indoor_temp = self.BRC / self.BRM
+        self.indoor_humidity = self.BRCX / self.BRMX
 
         # 后处理
         self.T_mrt = (self.project.kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
@@ -462,6 +471,7 @@ room_1 = Rooms('room_1', 129.6, 0, 0.5, schedule_1, project_1)
 output = []
 for cal_step in range(8760 * 3600 // project_1.dt):
     room_1.load_cycle(cal_step)  # 循环方法
-    output.append(room_1.indoor_temp)
+    output.append(room_1.indoor_humidity)
 plt.plot(output)
+plt.plot(room_1.project.weather_data.outdoor_ab_humidity)
 plt.show()
