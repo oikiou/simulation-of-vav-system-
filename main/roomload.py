@@ -222,6 +222,7 @@ class Walls(Face):
         self.FI = self.ux[0][0] * self.ul[0]
         self.FO = self.ux[0][-1] * self.ur[-1]
         self.anf = self.area * self.FI
+        self.te = 0
 
         # 相当外气温度
         if self.wall_type in ('outer_wall', 'roof'):
@@ -356,6 +357,8 @@ class Rooms(object):
             if x.wall_type is 'ground':
                 x.tn = np.ones(np.array(x.ul).shape) * self.ground_temp
 
+        Rooms.rooms.append(self)
+
     # 循环接口
     def load_cycle(self, step):
         self.HG_c = 0
@@ -402,9 +405,9 @@ class Rooms(object):
             if x.wall_type in ('floor', 'ceiling'):
                 x.te = self.indoor_temp
             if x.wall_type in 'inner_wall':
-                if x.roomby:
+                if x.room_by:
                     for y in Rooms.rooms:
-                        if x.roomby == y.room_name:
+                        if x.room_by == y.room_name:
                             x.te = 0.7 * y.indoor_temp + 0.3 * self.project.weather_data.outdoor_temp[step]
                 else:
                     x.te = 0.7 * self.indoor_temp + 0.3 * self.project.weather_data.outdoor_temp[step]
@@ -424,6 +427,22 @@ class Rooms(object):
         self.indoor_temp = self.BRC / self.BRM
         self.indoor_humidity = self.BRCX / self.BRMX
 
+        # 负荷计算
+        temp0 = self.BRC / self.BRM
+        if temp0 <= 20:
+            self.load = (self.BRC - self.BRM * 20) / 1000
+            self.indoor_temp = 20
+            self.load_sum_w += self.load
+            self.load_max_w = min(self.load_max_w, self.load)
+        elif temp0 >= 27:
+            self.load = (self.BRC - self.BRM * 27) / 1000
+            self.indoor_temp = 27
+            self.load_sum_s += self.load
+            self.load_max_s = max(self.load_max_s, self.load)
+        else:
+            self.load = 0
+            self.indoor_temp = temp0
+
         # 后处理
         self.T_mrt = (self.project.kc * self.ANF * self.indoor_temp + self.AFT) / self.SDT
         for x in self.windows:
@@ -436,12 +455,12 @@ class Rooms(object):
             x.tn = np.dot(x.ux, x.tn)
             x.T_sn = x.tn[0]
 
-
+'''
 # 使用流程（实例）
 # 1. 读取气象参数
 # 气象参数从csv文件读取，不要有数字以外的内容，数据从第二行开始，一共（8760行 + 1行） * 5列
 # 360的单位是秒，代表时间间隔，理论上可以取任意小于等于3600的正数，但最好是能够被3600整除
-wea = WeatherData("input_data/DRYCOLD01.csv", 360)
+wea = WeatherData("input_data/DRYCOLD01.csv", 3600)
 # 2. 输入项目信息
 # 城市，经度，纬度，时区[h]，地面反射率，长波辐射率，外表面日射吸收率，气象参数
 project_1 = Project('USCO', 39.8, -104.9, -6, 0.2, 0.9, 0.6, wea)
@@ -471,7 +490,9 @@ room_1 = Rooms('room_1', 129.6, 0, 0.5, schedule_1, project_1)
 output = []
 for cal_step in range(8760 * 3600 // project_1.dt):
     room_1.load_cycle(cal_step)  # 循环方法
-    output.append(room_1.indoor_humidity)
-plt.plot(output)
-plt.plot(room_1.project.weather_data.outdoor_ab_humidity)
-plt.show()
+    output.append(room_1.indoor_temp)
+#plt.plot(output)
+#plt.plot(room_1.project.weather_data.outdoor_temp)
+#plt.show()
+#np.savetxt('output/1-4.csv', output, delimiter = ',', fmt="%.4f")
+'''

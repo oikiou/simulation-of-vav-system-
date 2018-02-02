@@ -68,6 +68,6 @@ for cal_step in range(8760 * 3600 // project_1.dt):
 plt.plot(output1)
 plt.plot(output2)
 plt.plot(output3)
-plt.plot(room_1.project.weather_data.outdoor_temp)
+# plt.plot(room_1.project.weather_data.outdoor_temp)
 plt.show()
 #np.savetxt('output/1-4.csv', output, delimiter = ',', fmt="%.4f")
