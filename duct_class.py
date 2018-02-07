@@ -1,3 +1,6 @@
+# 风管类
+# 输入 流量，管长，局部阻力系数
+# 输出 选择的管径，流速，S，压力损失
 class Duct(object):
     def __init__(self, G, L, kexi, r=0, v=4, style='round'):
         self.G = G  # m3/h
@@ -28,33 +31,35 @@ class Duct(object):
 
 d1 = Duct(4342, 0.78, 2.6)
 #print(d1.r, d1.v, d1.S, d1.p)
-
 #print((4342/3600)**2*19.7)
 
+
+# 水泵 风机
+# 性能曲线拟合
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def kaiki(x, y, n=3):
-    if len(x) == len(y):
-        f = np.mat([np.power(x, j) for j in range(n+1)]).T
-        return f.I * np.mat(y).T
-        #return ((f.T * f).I * f.T) * np.mat(y).T
+class Fan(object):
+    def __init__(self, perf, dim):  # 性能曲线矩阵[x[], y[]]，曲线拟合次数
+        self.x = np.array(perf[0], dtype=float)
+        self.y = np.array(perf[1], dtype=float)
+        self.dim = dim
+        self.f_mat = np.mat([np.power(self.x, j) for j in range(dim + 1)]).T
+        if len(self.x) == self.dim + 1:  # 精确解
+            self.k = self.f_mat.I * np.mat(self.y).T
+        else:  # 近似解
+            self.k = (self.f_mat.T * self.f_mat).I * self.f_mat * self.y.T
 
-x = [0., 440., 1160., 1860.]  ##!!!!!!浮点！！！！！
-y = [443., 330., 240., 0.]
-n = 3
-k = kaiki(x, y, n)
-print(k)
-a = np.mat([np.power(x, j) for j in range(n+1)]).T
-print(a)
-print(a * k)
+    def fan_check(self):
+        return self.f_mat * self.k
 
-y = []
-x = np.linspace(0, x[-1])
-for i in x:
-    y.append(np.mat([np.power(i, j) for j in range(n+1)]) * k)
-y = np.array(y).reshape(1,-1)[0]
-plt.plot(x, y)
-plt.show()
+    def fan_plot(self):
+        plot_x = np.linspace(0, self.x[-1])
+        plot_y = np.reshape([([np.power(i, j) for j in range(self.dim + 1)] * self.k) for i in plot_x], [1, -1])[0]
+        plt.plot(plot_x, plot_y)
+        plt.show()
 
+a = Fan([[0, 440, 1160, 1860], [443, 330, 240, 0]], 3)
+print(a.fan_check())
+a.fan_plot()
