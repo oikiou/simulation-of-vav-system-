@@ -48,8 +48,11 @@ class Fan(object):
         self.f_mat = np.mat([np.power(self.x, j) for j in range(dim + 1)]).T
         if len(self.x) == self.dim + 1:  # 精确解
             self.k = self.f_mat.I * np.mat(self.y).T
-        else:  # 近似解
-            self.k = (self.f_mat.T * self.f_mat).I * self.f_mat * self.y.T
+        elif len(self.x) > self.dim + 1:  # 最优解
+            self.k = (self.f_mat.T * self.f_mat).I * self.f_mat.T * np.mat(self.y).T
+        else:  # 无解 降数 求精确解
+            self.dim = len(self.x) - 1
+            self.k = self.f_mat.I * np.mat(self.y).T
 
     def fan_check(self):
         return self.f_mat * self.k
@@ -60,6 +63,6 @@ class Fan(object):
         plt.plot(plot_x, plot_y)
         plt.show()
 
-a = Fan([[0, 440, 1160, 1860], [443, 330, 240, 0]], 3)
+a = Fan([[0, 440, 1160, 1860], [443, 330, 240, 0]], 2)
 print(a.fan_check())
 a.fan_plot()
