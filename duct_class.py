@@ -45,24 +45,70 @@ class Fan(object):
         self.x = np.array(perf[0], dtype=float)
         self.y = np.array(perf[1], dtype=float)
         self.dim = dim
-        self.f_mat = np.mat([np.power(self.x, j) for j in range(dim + 1)]).T
+        self.f_mat = np.mat([np.power(self.x, j) for j in range(self.dim + 1)]).T
         if len(self.x) == self.dim + 1:  # 精确解
             self.k = self.f_mat.I * np.mat(self.y).T
         elif len(self.x) > self.dim + 1:  # 最优解
             self.k = (self.f_mat.T * self.f_mat).I * self.f_mat.T * np.mat(self.y).T
-        else:  # 无解 降数 求精确解
+        else:  # 无解 按最大维度求解
             self.dim = len(self.x) - 1
+            self.f_mat = np.mat([np.power(self.x, j) for j in range(self.dim + 1)]).T
             self.k = self.f_mat.I * np.mat(self.y).T
 
     def fan_check(self):
         return self.f_mat * self.k
 
     def fan_plot(self):
-        plot_x = np.linspace(0, self.x[-1])
+        plt.scatter(self.x, self.y)
+        plot_x = np.linspace(self.x.min(), self.x.max())
         plot_y = np.reshape([([np.power(i, j) for j in range(self.dim + 1)] * self.k) for i in plot_x], [1, -1])[0]
         plt.plot(plot_x, plot_y)
-        plt.show()
 
-a = Fan([[0, 440, 1160, 1860], [443, 330, 240, 0]], 2)
-print(a.fan_check())
-a.fan_plot()
+x = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
+y = []
+y.append([443, 383, 348, 305, 277, 249, 216, 172, 112, 30])
+y.append([355, 296, 256, 238, 207, 182, 148, 97, 21])
+y.append([342, 284, 246, 217, 190, 161, 121, 62])
+y.append([336, 278, 236, 206, 178, 145, 97, 38])
+y.append([320, 264, 223, 189, 153, 109, 50])
+y.append([300, 239, 194, 153, 110, 55])
+y.append([260, 200, 152, 107, 52])
+y.append([179, 129, 79, 24])
+# y.append([80, 45])
+z = [50, 45, 40, 35, 30, 25, 20, 15]
+
+hk = []
+h = [Fan([x[0:len(yi)], yi], 3) for yi in y]
+for i in range(len(h)):
+    # h[i].fan_plot()
+    plt.scatter(h[i].x, h[i].y)
+    hk.append(h[i].k)
+    # print(h[i].x * h[i].y / 1000)
+# plt.show()
+hk = np.array(hk).reshape(-1,4)
+print(hk)
+h2 = [Fan([z, hki], 5) for hki in hk.T]
+k2 = []
+for i in range(len(h2)):
+    # print(h2[i].fan_check())
+    #h2[i].fan_plot()
+    #plt.show()
+    k2.append(h2[i].k)
+k2 = np.array(k2).reshape(-1,6)
+print(k2)
+
+print(np.mat([np.power(50, j) for j in range(5 + 1)]) * k2.T)
+
+for i in range(15,51):
+    plot_x = np.linspace(0, 1800)
+    i_fat = np.mat([np.power(i, j) for j in range(5 + 1)])
+    k = i_fat * k2.T
+    plot_y = np.reshape([([np.power(i, j) for j in range(3 + 1)] * k.T) for i in plot_x], [1, -1])[0]
+    plt.plot(plot_x, plot_y)
+
+plt.show()
+'''
+class Poly():
+    """多项式拟合"""
+    def __init__(self, x, y, dim):
+'''
