@@ -103,22 +103,27 @@ class Fan(object):
         # k1精度校核
 
         # check_y
-        self.prediction = self.h1[0].x_mat * self.k1_prediction.T
+        self.prediction = [np.array(self.k1_prediction[i] * self.h1[i].x_mat.T).flatten() for i in range(len(self.h1))]
         # y精度校核
 
     # 绘图
     def plot(self):
         for i in range(len(self.h1)):
             plt.scatter(self.h1[i].x, self.h1[i].y)
-        plt.plot(self.x, self.prediction)
+            plt.plot(self.h1[i].x, self.prediction[i])
+        plt.grid(True)
         plt.show()
 
     # 预测(应用)
-    def p(self, g, inv):
-        inv_mat = np.mat([np.power(inv, i) for i in range(self.dim2 + 1)])
+    def p(self, g0, inv0):
+        g0 = np.array(g0, dtype=float)
+        inv0 = np.array(inv0, dtype=float)
+
+        inv_mat = np.mat([np.power(inv0, i) for i in range(self.dim2 + 1)])
         k1_prediction = inv_mat * self.k2.T
-        g_mat = np.mat([np.power(g, i) for i in range(self.dim1 + 1)])
-        return g_mat * k1_prediction.T
+        g_mat = np.mat([np.power(g0, i) for i in range(self.dim1 + 1)])
+
+        return np.array(k1_prediction * g_mat.T).flatten()
 
 # 测试
 g = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
@@ -132,10 +137,21 @@ p.append([300, 239, 194, 153, 110, 55])
 p.append([260, 200, 152, 107, 52])
 p.append([179, 129, 79, 24])
 inv = [50, 45, 40, 35, 30, 25, 20, 15]
-
+'''
 f = Fan(g, p, inv)
 print(f.k1)
 print(f.k1_prediction)
 print(f.prediction)
 f.plot()
 print(f.p(600, 40))
+'''
+g1 = list(map(lambda x: x * 4342 / 1200, g))
+p1 = [[x * 270 / 216 for x in pi] for pi in p]
+#print(p1)
+f = Fan(g1, p1, inv)
+#print(f.k1)
+#print(f.k1_prediction)
+print(f.prediction)
+print(f.p(2000, 50))
+#f.plot()
+
