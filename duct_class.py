@@ -38,6 +38,7 @@ d1 = Duct(4342, 0.78, 2.6)
 # 性能曲线拟合
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
 
 
 class Poly(object):
@@ -148,10 +149,185 @@ print(f.p(600, 40))
 g1 = list(map(lambda x: x * 4342 / 1200, g))
 p1 = [[x * 270 / 216 for x in pi] for pi in p]
 #print(p1)
-f = Fan(g1, p1, inv)
+f2 = Fan(g1, p1, inv)
 #print(f.k1)
 #print(f.k1_prediction)
-print(f.prediction)
-print(f.p(2000, 50))
-#f.plot()
+#print(f.prediction)
+#print(f.p(2000, 50))
+#f2.plot()
+'''
+f1_x = f2.h1[0].x
+f1_y = f2.h1[0].y
+for i in range(8):
+    hz = 50 - 5 * i
+    x = f1_x * hz / 50
+    y = f1_y * (hz / 50) ** 2
+    plt.plot(x, y)
+    plt.scatter(x, y)
+plt.grid(True)
+plt.show()
+'''
+g2 = list(map(lambda x: x * 4342 / 1200, g))
+p2 = [[x * 35 / 216 for x in pi] for pi in p]
+f1 = Fan(g2, p2, inv)
+#f1.plot()
 
+x = np.linspace(0, 5000)
+'''
+y1 = []
+y2 = []
+ub = []
+ua = []
+#print(((f1.p(x[1], 50) - 3.2 * x[1] ** 2) / 20.6))
+
+for i in range(len(x)):
+    ub.append((f1.p(x[i], 50) - 3.2 * (x[i]/3600) ** 2))
+    ua.append((f2.p(x[i], 50) - 172.1 * (x[i]/3600) ** 2))
+    if ub[i] > 0:
+        y1.append((x[i]/3600) - np.sqrt((f1.p(x[i], 50) - 3.2 * (x[i]/3600) ** 2) / 20.6))
+    else:
+        y1.append(None)
+    if ua[i] > 0:
+        y2.append((x[i]/3600) - np.sqrt((f2.p(x[i], 50) - 172.1 * (x[i]/3600) ** 2) / 10.6))
+    else:
+        y2.append(None)
+'''
+'''
+plt.scatter(x, y1)
+plt.scatter(x, y2)
+plt.scatter(x, ub)
+plt.scatter(x, ua)
+plt.show()
+'''
+from mpl_toolkits.mplot3d import Axes3D
+
+#fig = plt.figure()
+#ax = Axes3D(fig)
+'''
+a = []
+b = []
+c = []
+for i in x:
+    for j in x:
+        a.append(i)
+        b.append(j)
+        if ((f1.p(i, 50) - 3.2 * (i/3600)**2 + f2.p(j, 50) - 172.1 * (j/3600)**2)/9.1) >0:
+            c.append(np.sqrt((f1.p(i, 50) - 3.2 * (i/3600)**2 + f2.p(j, 50) - 172.1 * (j/3600)**2)/9.1))
+        else:
+            c.append(0.001)
+#ax =plt.subplot(111, projection = '3d')
+#ax.scatter(a,b,c)
+#plt.show()
+
+
+def f_1(x):
+    if (f1.p(x, 50) - 3.2 * (x/3600) ** 2)>0:
+        return x - np.sqrt((f1.p(x, 50) - 3.2 * (x/3600) ** 2)/20.6)
+    else:
+        return 0
+
+def f_2(x):
+    if (f2.p(x, 50) - 172.1 * (x/3600) ** 2)>0:
+        return x - np.sqrt((f2.p(x, 50) - 172.1 * (x/3600) ** 2)/10.6)
+    else:
+        return 0
+
+epsilon = 1
+
+def erfen2(f, max, min, y0):
+    """y = f(x) 单调，求x"""
+    mid = (max + min) / 2
+    y = f(mid)
+    error = abs(y - y0)
+    if error < epsilon:
+        return mid
+    elif (f(max) - f(min)) * (y - y0) > 0:
+        return erfen(f, mid, min, y0)
+    else:
+        return erfen(f, max, mid, y0)
+
+def erfen(f, max, min, y0):
+    """y = f(x) 单调，求x"""
+    error = epsilon + 1
+    while error > epsilon:
+        mid = (max + min) / 2
+        y = f(mid)
+        error = abs(y - y0)
+        if error < epsilon:
+            return mid
+        elif (f(max) - f(min)) * (y - y0) > 0:
+            max = mid
+        else:
+            min = mid
+
+# print(erfen(f, 5000, 0, y0))
+
+def g(x):  # !!!!!!g(x)没有用到x
+    g1 = erfen(f_1, 5000, 0, x)
+    g2 = erfen(f_2, 5000, 0, x)
+    if (f1.p(g1, 50) - 3.2 * (g1/3600)**2 + f2.p(g2, 50) - 172.1 * (g2/3600)**2)>0:
+        return np.sqrt(((f1.p(g1, 50) - 3.2 * (g1/3600)**2 + f2.p(g2, 50) - 172.1 * (g2/3600)**2)/9.1))-x/3600
+    else:
+        return 0
+
+#g3 = erfen(g, 5000, 0, 0)
+#print(g3)
+
+def g1_max_f(x):
+    return f1.p(x, 50)-3.2 * (x/3600) ** 2
+def g2_max_f(x):
+    return f2.p(x, 50)-172.1 * (x/3600) ** 2
+g1_max = erfen(g1_max_f, 10000, 0, 0)
+g2_max = erfen(g2_max_f, 10000, 0, 0)
+print(g2_max)
+# print(g1_max)
+
+g11 = np.linspace(0, g1_max)
+g31 = [g11i/3600 - np.sqrt((f1.p(g11i, 50) - 3.2 * (g11i/3600) ** 2)/20.6)*3600 for g11i in g11]
+g21 = []
+
+def g2_f(x):
+    return x/3600 - np.sqrt((f2.p(x, 50) - 72.1 * (x/3600) ** 2)/10.6)
+
+for i in g31:
+    g21.append(erfen(g2_f, g2_max, 0, i/3600))
+
+#plt.scatter(g11, g21)
+plt.plot(g11)
+plt.plot(g21)
+plt.plot(g31)
+plt.show()
+'''
+
+
+
+def f(x):
+    x1 = float(x[0])
+    x2 = float(x[1])
+    x3 = float(x[2])
+    return np.array([
+        f1.p(x1, 50) - 3.2 * (x1/3600) ** 2 - 20.6 * ((x1 - x3)/3600) ** 2,
+        f2.p(x2, 50) - 172.1 * (x2/3600) ** 2 - 10.6 * ((x2 - x3)/3600) ** 2,
+        f1.p(x1, 50) - 3.2 * (x1/3600) ** 2 - 9.1 * (x3/3600) ** 2 - 172.1 * (x2/3600) ** 2 + f2.p(x2, 50)
+    ]).flatten()
+
+result = fsolve(f, np.array([1, 1, 1]))
+
+#x1/3600 - np.sqrt((f1.p(x1, 50) - 3.2 * (x1/3600) ** 2) / 20.6) - x3/3600, x2/3600 - np.sqrt((f2.p(x2, 50) - 172.1 * (x2/3600) ** 2) / 10.6) - x3/3600,
+
+print(result)
+print(f(result))
+'''
+
+g1 = 5478
+g2 = 5478
+p1 = (f1.p(g1, 50))
+p2 = (f2.p(g2, 50))
+ub = p1 - 3.2 * (g1/3600) ** 2
+ua = p2 - 172.1 * (g2/3600) ** 2
+g31 = g1/3600 - (ub/20.6) ** 0.5
+g32 = g2/3600 - (ua/10.6) ** 0.5
+g33 = ((ub - ua)/9.1) ** 0.5
+
+print(g1/3600, g2/3600, p1, p2, ub, ua, g31, g32, g33)
+'''
