@@ -1,46 +1,129 @@
-# 风管类
-# 输入 流量，管长，局部阻力系数
-# 输出 选择的管径，流速，S，压力损失
-class Duct(object):
-    def __init__(self, G, L, kexi, r=0, v=4, style='round'):
-        self.G = G  # m3/h
-        self.L = L  # m
-        self.kexi = kexi
-        self.r = r
-        self.v = v
-        self.style = style
-        self.A = self.G / 3600 / self.v
-
-        # 管径
-        round_d = [0.015, 0.02, 0.025, 0.032, 0.04, 0.04, 0.07, 0.08, 0.1, 0.125, 0.15, 0.2, 0.25, 0.3, 0.35,
-                   0.4, 0.45, 0.5, 0.6, 0.7, 0.8]
-        round_r = [x / 2 for x in round_d]
-        if self.style is 'round' and self.r == 0:
-            for r in round_r:
-                if 3.1415 * (r ** 2) > self.A:
-                    self.r = r
-                    break
-
-        # 反推
-        self.A = 3.1415 * self.r ** 2
-        self.v = self.G / 3600 / self.A
-        self.d = self.r * 2
-        self.S = (0.02 * self.L / self.d + self.kexi) * 8 * 1.2 / (3.1415 ** 2) / (self.d ** 4)
-
-        self.p = self.S * (self.G / 3600) ** 2
-
-d1 = Duct(4342, 0.78, 2.6)
-#print(d1.r, d1.v, d1.S, d1.p)
-#print((4342/3600)**2*19.7)
-
-
-# 水泵 风机
-# 性能曲线拟合
+# -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
 
+# 风阀类
+class Damper(object):
+    '''风阀'''
+    def __init__(self, room, d, rho=1.2):
+        self.room = room
+        self.d = d
+        self.rho = rho
+        self.theta = 0
+        self.l, self.zeta, self.s = self.theta2para(self.theta)
+
+    def theta2para(self, theta):
+        l = 1 - np.sin(np.deg2rad(theta))
+        zeta = ((1 - l) * (1.5 - l) / l ** 2)
+        s = (8 * self.rho * zeta) / (np.pi ** 2 * self.d ** 4)
+        return l, zeta, s
+
+    def theta2s(self, theta):
+        l, zeta, s = self.theta2para(theta)
+        return s
+
+    def plot(self):
+        x = np.linspace(0.01, 89.9)
+        l, zeta, s = [[self.theta2s(xi)[i] for xi in x] for i in range(3)]
+        plt.plot(x, np.array(l) * 100, label=u"l/l_max")
+        plt.plot(x, np.log(zeta), label=u'ln(zeta)')
+        plt.plot(x, np.log(s), label=u'ln(s)')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+# 测试
+'''
+vav1 = Damper('room_1', 0.4)
+# vav1.plot()
+print(vav1.theta2para(30))
+print(vav1.theta2s(30))
+'''
+vav1 = Damper('room_1', 0.4)
+vav2 = Damper('room_2', 0.35)
+vav3 = Damper('room_3', 0.45)
+fresh_air_damper = Damper('AHU', 0.7)
+exhaust_air_damper = Damper('AHU', 0.7)
+mix_air_damper = Damper('AHU', 0.7)
+
+
+# 风管类
+# 输入 流量，管长，局部阻力系数
+# 输出 管径，流速，S，压力损失
+class Duct(object):
+    def __init__(self, g, l, xi, d=0., a=0., b=0., v=4., show=False):
+        self.g = g  # m3/h  # 流量
+        self.l = l  # m  # 管长
+        self.xi = xi  # 局部阻力系数
+        self.d = d  # 直径(当量直径 d = 2ab/(a+b))
+        self.a = a  # 一边(方管可以指定一边)
+        self.b = b  # 另一边
+        self.v = v  # 流速
+        self.A = self.g / 3600 / self.v  # 截面积
+
+        # 公称直径
+        nominal_diameter = [0.015, 0.02, 0.025, 0.032, 0.04, 0.05, 0.065, 0.08, 0.1, 0.125, 0.15, 0.2, 0.25,
+                            0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.8]
+
+        # 圆管
+        if self.d == 0:
+            self.d_target = (self.A / np.pi) ** 0.5 * 2
+            dis = [abs(nd - self.d_target) for nd in nominal_diameter]
+            self.d = nominal_diameter[dis.index(min(dis))]
+
+        # 方管
+        if self.a != 0 and self.b == 0:
+            self.d_target = (self.A / np.pi) ** 0.5 * 2
+            self.b_target = self.d_target * self.a / (2 * self.a - self.d_target)
+            dis = [abs(nd - self.b_target) for nd in nominal_diameter]
+            self.b = nominal_diameter[dis.index(min(dis))]
+
+        if self.a != 0:
+            self.d = (2 * self.a * self.b) / (self.a + self.b)  # 当量直径
+
+        # 反推
+        self.A = 3.1415 * self.d ** 2 / 4
+        self.v = self.g / 3600 / self.A
+
+        # 阻力系数
+        self.S = (0.02 * self.l / self.d + self.xi) * 8 * 1.2 / (3.1415 ** 2) / (self.d ** 4)
+        # 额定压损
+        self.p = self.S * (self.g / 3600) ** 2
+
+        # 打印
+        if show:
+            if self.a:
+                print('a, b, v, S, p')
+                print(self.a, self.b, self.v, self.S, self.p)
+            else:
+                print('d, v, S, p')
+                print(self.d, self.v, self.S, self.p)
+
+# 测试
+'''
+d2 = Duct(1547, 0, 2)
+print(d2.d)
+d5 = Duct(1547, 0, 2, a=0.5, s_print=True)
+'''
+
+theta0 = 0  # 阀门全开
+# 送风管段
+duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23 + vav1.theta2s(theta0), show=True)
+duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav2.theta2s(theta0), show=True)
+duct_12 = Duct(1547 + 1140, 7.5, 0.05+0.1, a=0.5, show=True)
+duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav3.theta2s(theta0), show=True)
+duct_123 = Duct(1547 + 1140 + 1872, 4.3, 3.6+0.23, a=0.5, show=True)
+# 回风管段
+duct_return_air = Duct(4342, 1.75, 0.5+0.24, a=0.6, show=True)
+duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05+exhaust_air_damper.theta2s(theta0), a=0.6, show=True)
+duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4+fresh_air_damper.theta2s(theta0), a=0.6, show=True)
+duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5+mix_air_damper.theta2s(theta0), a=0.6, show=True)
+
+
+# 水泵 风机
+# 性能曲线拟合
 class Poly(object):
     """多项式拟合 y是x的多项式 输出k是拟合好的系数"""
     def __init__(self, x, y, dim):
@@ -73,6 +156,8 @@ class Poly(object):
         plot_y = plot_x_mat * self.k
         plt.plot(plot_x, plot_y)
         plt.show()
+
+# 测试
 '''
 x = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
 y = [443, 383, 348, 305, 277, 249, 216, 172, 112, 30]
@@ -146,6 +231,7 @@ print(f.prediction)
 f.plot()
 print(f.p(600, 40))
 '''
+
 g1 = list(map(lambda x: x * 4342 / 1200, g))
 p1 = [[x * 270 / 216 for x in pi] for pi in p]
 #print(p1)
@@ -156,6 +242,7 @@ f2 = Fan(g1, p1, inv)
 #print(f.p(2000, 50))
 #f2.plot()
 '''
+# 理想风机特性曲线
 f1_x = f2.h1[0].x
 f1_y = f2.h1[0].y
 for i in range(8):
@@ -172,133 +259,24 @@ p2 = [[x * 35 / 216 for x in pi] for pi in p]
 f1 = Fan(g2, p2, inv)
 #f1.plot()
 
+
+# 排风新风混风段 及 整个风管系统的物理模型
+class SupplyAirDuct(object):
+    '''送风管路'''
+    def __init__(self):
+        pass
+
+class supply_fan(Fan):
+    def __init__(self, **a):
+        super().__init__(**a)
+
+class duct_system(object):
+    def __init__(self, terminal, ):
+        pass
+
+
+
 x = np.linspace(0, 5000)
-'''
-y1 = []
-y2 = []
-ub = []
-ua = []
-#print(((f1.p(x[1], 50) - 3.2 * x[1] ** 2) / 20.6))
-
-for i in range(len(x)):
-    ub.append((f1.p(x[i], 50) - 3.2 * (x[i]/3600) ** 2))
-    ua.append((f2.p(x[i], 50) - 172.1 * (x[i]/3600) ** 2))
-    if ub[i] > 0:
-        y1.append((x[i]/3600) - np.sqrt((f1.p(x[i], 50) - 3.2 * (x[i]/3600) ** 2) / 20.6))
-    else:
-        y1.append(None)
-    if ua[i] > 0:
-        y2.append((x[i]/3600) - np.sqrt((f2.p(x[i], 50) - 172.1 * (x[i]/3600) ** 2) / 10.6))
-    else:
-        y2.append(None)
-'''
-'''
-plt.scatter(x, y1)
-plt.scatter(x, y2)
-plt.scatter(x, ub)
-plt.scatter(x, ua)
-plt.show()
-'''
-from mpl_toolkits.mplot3d import Axes3D
-
-#fig = plt.figure()
-#ax = Axes3D(fig)
-'''
-a = []
-b = []
-c = []
-for i in x:
-    for j in x:
-        a.append(i)
-        b.append(j)
-        if ((f1.p(i, 50) - 3.2 * (i/3600)**2 + f2.p(j, 50) - 172.1 * (j/3600)**2)/9.1) >0:
-            c.append(np.sqrt((f1.p(i, 50) - 3.2 * (i/3600)**2 + f2.p(j, 50) - 172.1 * (j/3600)**2)/9.1))
-        else:
-            c.append(0.001)
-#ax =plt.subplot(111, projection = '3d')
-#ax.scatter(a,b,c)
-#plt.show()
-
-
-def f_1(x):
-    if (f1.p(x, 50) - 3.2 * (x/3600) ** 2)>0:
-        return x - np.sqrt((f1.p(x, 50) - 3.2 * (x/3600) ** 2)/20.6)
-    else:
-        return 0
-
-def f_2(x):
-    if (f2.p(x, 50) - 172.1 * (x/3600) ** 2)>0:
-        return x - np.sqrt((f2.p(x, 50) - 172.1 * (x/3600) ** 2)/10.6)
-    else:
-        return 0
-
-epsilon = 1
-
-def erfen2(f, max, min, y0):
-    """y = f(x) 单调，求x"""
-    mid = (max + min) / 2
-    y = f(mid)
-    error = abs(y - y0)
-    if error < epsilon:
-        return mid
-    elif (f(max) - f(min)) * (y - y0) > 0:
-        return erfen(f, mid, min, y0)
-    else:
-        return erfen(f, max, mid, y0)
-
-def erfen(f, max, min, y0):
-    """y = f(x) 单调，求x"""
-    error = epsilon + 1
-    while error > epsilon:
-        mid = (max + min) / 2
-        y = f(mid)
-        error = abs(y - y0)
-        if error < epsilon:
-            return mid
-        elif (f(max) - f(min)) * (y - y0) > 0:
-            max = mid
-        else:
-            min = mid
-
-# print(erfen(f, 5000, 0, y0))
-
-def g(x):  # !!!!!!g(x)没有用到x
-    g1 = erfen(f_1, 5000, 0, x)
-    g2 = erfen(f_2, 5000, 0, x)
-    if (f1.p(g1, 50) - 3.2 * (g1/3600)**2 + f2.p(g2, 50) - 172.1 * (g2/3600)**2)>0:
-        return np.sqrt(((f1.p(g1, 50) - 3.2 * (g1/3600)**2 + f2.p(g2, 50) - 172.1 * (g2/3600)**2)/9.1))-x/3600
-    else:
-        return 0
-
-#g3 = erfen(g, 5000, 0, 0)
-#print(g3)
-
-def g1_max_f(x):
-    return f1.p(x, 50)-3.2 * (x/3600) ** 2
-def g2_max_f(x):
-    return f2.p(x, 50)-172.1 * (x/3600) ** 2
-g1_max = erfen(g1_max_f, 10000, 0, 0)
-g2_max = erfen(g2_max_f, 10000, 0, 0)
-print(g2_max)
-# print(g1_max)
-
-g11 = np.linspace(0, g1_max)
-g31 = [g11i/3600 - np.sqrt((f1.p(g11i, 50) - 3.2 * (g11i/3600) ** 2)/20.6)*3600 for g11i in g11]
-g21 = []
-
-def g2_f(x):
-    return x/3600 - np.sqrt((f2.p(x, 50) - 72.1 * (x/3600) ** 2)/10.6)
-
-for i in g31:
-    g21.append(erfen(g2_f, g2_max, 0, i/3600))
-
-#plt.scatter(g11, g21)
-plt.plot(g11)
-plt.plot(g21)
-plt.plot(g31)
-plt.show()
-'''
-
 
 
 def f(x):
@@ -313,10 +291,8 @@ def f(x):
 
 result = fsolve(f, np.array([1, 1, 1]))
 
-#x1/3600 - np.sqrt((f1.p(x1, 50) - 3.2 * (x1/3600) ** 2) / 20.6) - x3/3600, x2/3600 - np.sqrt((f2.p(x2, 50) - 172.1 * (x2/3600) ** 2) / 10.6) - x3/3600,
-
-print(result)
-print(f(result))
+#print(result)
+#print(f(result))
 
 # check
 g1 = result[0]
@@ -329,4 +305,6 @@ g31 = g1/3600 - (ub/20.6) ** 0.5
 g32 = g2/3600 - (ua/10.6) ** 0.5
 g33 = ((ub + ua)/9.1) ** 0.5  # 是加不是减
 
-print(g1/3600, g2/3600, p1, p2, ub, ua, g31*3600, g32*3600, g33*3600)
+# print(g1/3600, g2/3600, p1, p2, ub, -ua, g31*3600, g32*3600, g33*3600)
+
+
