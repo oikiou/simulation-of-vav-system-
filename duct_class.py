@@ -7,8 +7,7 @@ from scipy.optimize import fsolve
 # 风阀类
 class Damper(object):
     '''风阀'''
-    def __init__(self, room, d, rho=1.2):
-        self.room = room
+    def __init__(self, d, rho=1.2):
         self.d = d
         self.rho = rho
         self.theta = 0
@@ -26,7 +25,7 @@ class Damper(object):
 
     def plot(self):
         x = np.linspace(0.01, 89.9)
-        l, zeta, s = [[self.theta2s(xi)[i] for xi in x] for i in range(3)]
+        l, zeta, s = [[self.theta2para(xi)[i] for xi in x] for i in range(3)]
         plt.plot(x, np.array(l) * 100, label=u"l/l_max")
         plt.plot(x, np.log(zeta), label=u'ln(zeta)')
         plt.plot(x, np.log(s), label=u'ln(s)')
@@ -36,24 +35,24 @@ class Damper(object):
 
 # 测试
 '''
-vav1 = Damper('room_1', 0.4)
+vav1 = Damper(0.4)
 # vav1.plot()
 print(vav1.theta2para(30))
 print(vav1.theta2s(30))
 '''
-vav1 = Damper('room_1', 0.4)
-vav2 = Damper('room_2', 0.35)
-vav3 = Damper('room_3', 0.45)
-fresh_air_damper = Damper('AHU', 0.7)
-exhaust_air_damper = Damper('AHU', 0.7)
-mix_air_damper = Damper('AHU', 0.7)
+vav1 = Damper(0.35)
+vav2 = Damper(0.3)
+vav3 = Damper(0.4)
+fresh_air_damper = Damper(0.6)
+exhaust_air_damper = Damper(0.6)
+mix_air_damper = Damper(0.6)
 
 
 # 风管类
 # 输入 流量，管长，局部阻力系数
 # 输出 管径，流速，S，压力损失
 class Duct(object):
-    def __init__(self, g, l, xi, d=0., a=0., b=0., v=4., show=False):
+    def __init__(self, g, l, xi, d=0., a=0., b=0., v=4., show=True):
         self.g = g  # m3/h  # 流量
         self.l = l  # m  # 管长
         self.xi = xi  # 局部阻力系数
@@ -110,16 +109,16 @@ d5 = Duct(1547, 0, 2, a=0.5, s_print=True)
 
 theta0 = 0  # 阀门全开
 # 送风管段
-duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23 + vav1.theta2s(theta0), show=True)
-duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav2.theta2s(theta0), show=True)
-duct_12 = Duct(1547 + 1140, 7.5, 0.05+0.1, a=0.5, show=True)
-duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav3.theta2s(theta0), show=True)
-duct_123 = Duct(1547 + 1140 + 1872, 4.3, 3.6+0.23, a=0.5, show=True)
+duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23 + vav1.theta2s(theta0))
+duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav2.theta2s(theta0))
+duct_12 = Duct(1547 + 1140, 7.5, 0.05+0.1, a=0.5)
+duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav3.theta2s(theta0))
+duct_123 = Duct(1547 + 1140 + 1872, 4.3, 3.6+0.23, a=0.5)
 # 回风管段
-duct_return_air = Duct(4342, 1.75, 0.5+0.24, a=0.6, show=True)
-duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05+exhaust_air_damper.theta2s(theta0), a=0.6, show=True)
-duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4+fresh_air_damper.theta2s(theta0), a=0.6, show=True)
-duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5+mix_air_damper.theta2s(theta0), a=0.6, show=True)
+duct_return_air = Duct(4342, 1.75, 0.5+0.24, a=0.6)
+duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05+exhaust_air_damper.theta2s(theta0), a=0.6)
+duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4+fresh_air_damper.theta2s(theta0), a=0.6)
+duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5+mix_air_damper.theta2s(theta0), a=0.6)
 
 
 # 水泵 风机
@@ -169,15 +168,21 @@ p.plot()
 
 class Fan(object):
     """风机特性曲线 x是风量 z是频率 y是不同频率和风量下的压力"""
-    def __init__(self, x, y, z, dim1=3, dim2=5):
+    def __init__(self, x, y, z=(50, 45, 40, 35, 30, 25, 20, 15), dim1=3, dim2=5, ideal=False):
         self.x = x
         self.y = y
         self.z = z
         self.dim1 = dim1
         self.dim2 = dim2
+        self.ideal = ideal
 
         # 对不同频率下的风量和压力拟合，求出曲线的系数
-        self.h1 = [Poly(self.x[0:len(yi)], yi, self.dim1) for yi in self.y]
+        if ideal:
+            self.x0 = [[xi * zi / 50 for xi in self.x] for zi in self.z]
+            self.y0 = [[yi * (zi / 50) ** 2 for yi in self.y] for zi in self.z]
+            self.h1 = [Poly(self.x0[i], self.y0[i], self.dim1) for i in range(len(self.x0))]
+        else:
+            self.h1 = [Poly(self.x[0:len(yi)], yi, self.dim1) for yi in self.y]
         self.k1 = np.array([hi.k for hi in self.h1]).reshape(-1, dim1 + 1)
 
         # 对不同频率下的曲线的系数拟合
@@ -213,8 +218,7 @@ class Fan(object):
 
 # 测试
 g = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
-p = []
-p.append([443, 383, 348, 305, 277, 249, 216, 172, 112, 30])
+p = [[443, 383, 348, 305, 277, 249, 216, 172, 112, 30]]
 p.append([355, 296, 256, 238, 207, 182, 148, 97, 21])
 p.append([342, 284, 246, 217, 190, 161, 121, 62])
 p.append([336, 278, 236, 206, 178, 145, 97, 38])
@@ -222,53 +226,45 @@ p.append([320, 264, 223, 189, 153, 109, 50])
 p.append([300, 239, 194, 153, 110, 55])
 p.append([260, 200, 152, 107, 52])
 p.append([179, 129, 79, 24])
-inv = [50, 45, 40, 35, 30, 25, 20, 15]
 '''
-f = Fan(g, p, inv)
+f = Fan(g, p)
 print(f.k1)
 print(f.k1_prediction)
 print(f.prediction)
 f.plot()
 print(f.p(600, 40))
+f3 = Fan(g, p[0], ideal=True)
+f3.plot()
 '''
-
+# 送回风机
 g1 = list(map(lambda x: x * 4342 / 1200, g))
-p1 = [[x * 270 / 216 for x in pi] for pi in p]
-#print(p1)
-f2 = Fan(g1, p1, inv)
-#print(f.k1)
-#print(f.k1_prediction)
-#print(f.prediction)
-#print(f.p(2000, 50))
-#f2.plot()
-'''
-# 理想风机特性曲线
-f1_x = f2.h1[0].x
-f1_y = f2.h1[0].y
-for i in range(8):
-    hz = 50 - 5 * i
-    x = f1_x * hz / 50
-    y = f1_y * (hz / 50) ** 2
-    plt.plot(x, y)
-    plt.scatter(x, y)
-plt.grid(True)
-plt.show()
-'''
+p1 = [[x * 35 / 216 for x in pi] for pi in p]
+f1 = Fan(g1, p1)
 g2 = list(map(lambda x: x * 4342 / 1200, g))
-p2 = [[x * 35 / 216 for x in pi] for pi in p]
-f1 = Fan(g2, p2, inv)
-#f1.plot()
+p2 = [[x * 270 / 216 for x in pi] for pi in p]
+f2 = Fan(g2, p2)
+# f1.plot()
 
 
 # 排风新风混风段 及 整个风管系统的物理模型
 class SupplyAirDuct(object):
     '''送风管路'''
-    def __init__(self):
-        pass
+    def __init__(self, duct1, duct2, duct3, duct12, duct123):
+        self.duct1 = duct1
+        self.duct2 = duct2
+        self.duct3 = duct3
+        self.duct12 = duct12
+        self.duct123 = duct123
 
-class supply_fan(Fan):
-    def __init__(self, **a):
-        super().__init__(**a)
+        self.g = 0
+        self.p = 0
+
+'''
+    def parallel(a, b):
+        return a * b / (a ** 0.5 + b ** 0.5) ** 2
+
+    print(b(7 + b(212, 128), 77) + 19.7)
+'''
 
 class duct_system(object):
     def __init__(self, terminal, ):
