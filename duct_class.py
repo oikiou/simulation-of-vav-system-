@@ -197,12 +197,12 @@ p.plot()
 class Fan(object):
     """风机特性曲线 x是风量 z是频率 y是不同频率和风量下的压力"""
     def __init__(self, x, y, z=(50, 45, 40, 35, 30, 25, 20, 15), dim1=3, dim2=5, ideal=False):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.dim1 = dim1
-        self.dim2 = dim2
-        self.ideal = ideal
+        self.x = x  # 流量list
+        self.y = y  # 压力matrix
+        self.z = z  # 频率list
+        self.dim1 = dim1  # 风机特性曲线的次数
+        self.dim2 = dim2  # 曲线的系数的特性曲线的次数
+        self.ideal = ideal  # 是否是理想风机(流量和频率成正比，压力和频率的平方成正比)
         self.g = 0
         self.p = 0
         self.inv = 50
@@ -416,11 +416,16 @@ vav3.theta_run(40)
 fresh_air_damper.theta_run(30)
 mix_air_damper.theta_run(5)
 exhaust_air_damper.theta_run(35)
-
-print(duct_supply_air.s)
+duct_1.s_cal()
+duct_2.s_cal()
+duct_3.s_cal()
+duct_fresh_air.s_cal()
+duct_mix_air.s_cal()
+duct_exhaust_air.s_cal()
+duct_supply_air.s_cal()
 duct_system.balance()
 duct_system.balance_check()
-
+print(duct_supply_air.s)
 duct_supply_air.g_cal(duct_system.g_supply_air)
 print(duct_1.g, duct_2.g, duct_3.g)
 
@@ -439,7 +444,6 @@ duct_exhaust_air.s_cal()
 duct_supply_air.s_cal()
 duct_system.balance()
 duct_system.balance_check()
-
 duct_supply_air.g_cal(duct_system.g_supply_air)
 print(duct_1.g, duct_2.g, duct_3.g)
 
