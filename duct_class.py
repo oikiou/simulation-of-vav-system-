@@ -6,32 +6,39 @@ from scipy.optimize import fsolve
 
 # 风阀类
 class Damper(object):
-    '''风阀'''
-    def __init__(self, d, rho=1.2):
+    def __init__(self, d, rho=1.2, theta0=0):
         self.d = d
         self.rho = rho
-        self.theta = 0
-        self.l, self.zeta, self.s = self.theta2para(self.theta)
+        self.theta = theta0
+        self.l = 0
+        self.zeta = 0
+        self.s = 0
+        self.theta_run(self.theta)
 
-    def theta2para(self, theta):
-        l = 1 - np.sin(np.deg2rad(theta))
-        zeta = ((1 - l) * (1.5 - l) / l ** 2)
-        s = (8 * self.rho * zeta) / (np.pi ** 2 * self.d ** 4)
-        return l, zeta, s
-
-    def theta2s(self, theta):
-        l, zeta, s = self.theta2para(theta)
-        return s
+    def theta_run(self, theta):
+        self.theta = theta
+        self.l = 1 - np.sin(np.deg2rad(self.theta))
+        self.zeta = ((1 - self.l) * (1.5 - self.l) / self.l ** 2)
+        self.s = (8 * self.rho * self.zeta) / (np.pi ** 2 * self.d ** 4)
 
     def plot(self):
+        theta00 = self.theta
         x = np.linspace(0.01, 89.9)
-        l, zeta, s = [[self.theta2para(xi)[i] for xi in x] for i in range(3)]
+        l = []
+        zeta = []
+        s = []
+        for xi in x:
+            self.theta_run(xi)
+            l.append(self.l)
+            zeta.append(self.zeta)
+            s.append(self.s)
         plt.plot(x, np.array(l) * 100, label=u"l/l_max")
         plt.plot(x, np.log(zeta), label=u'ln(zeta)')
         plt.plot(x, np.log(s), label=u'ln(s)')
         plt.legend()
         plt.grid(True)
         plt.show()
+        self.theta_run(theta00)
 
 # 测试
 '''
@@ -52,7 +59,7 @@ mix_air_damper = Damper(0.6)
 # 输入 流量，管长，局部阻力系数
 # 输出 管径，流速，S，压力损失
 class Duct(object):
-    def __init__(self, g, l, xi, d=0., a=0., b=0., v=4., show=True):
+    def __init__(self, g, l, xi, d=0., a=0., b=0., v=4., damper=None, show=False):
         self.g = g  # m3/h  # 流量
         self.l = l  # m  # 管长
         self.xi = xi  # 局部阻力系数
@@ -60,7 +67,14 @@ class Duct(object):
         self.a = a  # 一边(方管可以指定一边)
         self.b = b  # 另一边
         self.v = v  # 流速
+        self.damper = damper
         self.A = self.g / 3600 / self.v  # 截面积
+        self.s = 0
+
+        # 叶子节点
+        self.left = None
+        self.right = None
+        self.root = 'duct'
 
         # 公称直径
         nominal_diameter = [0.015, 0.02, 0.025, 0.032, 0.04, 0.05, 0.065, 0.08, 0.1, 0.125, 0.15, 0.2, 0.25,
@@ -87,18 +101,30 @@ class Duct(object):
         self.v = self.g / 3600 / self.A
 
         # 阻力系数
-        self.S = (0.02 * self.l / self.d + self.xi) * 8 * 1.2 / (3.1415 ** 2) / (self.d ** 4)
+        self.s_cal()
         # 额定压损
-        self.p = self.S * (self.g / 3600) ** 2
+        self.p = self.s * (self.g / 3600) ** 2
 
         # 打印
         if show:
             if self.a:
                 print('a, b, v, S, p')
-                print(self.a, self.b, self.v, self.S, self.p)
+                print(self.a, self.b, self.v, self.s, self.p)
             else:
                 print('d, v, S, p')
-                print(self.d, self.v, self.S, self.p)
+                print(self.d, self.v, self.s, self.p)
+
+    # 多态
+    def g_cal(self, g):
+        self.g = g
+        self.p = self.s * self.g ** 2
+
+    def s_cal(self):
+        if self.damper:
+            self.s = (0.02 * self.l / self.d + self.xi + self.damper.zeta) * 8 * 1.2 / (3.1415 ** 2) / (self.d ** 4)
+        else:
+            self.s = (0.02 * self.l / self.d + self.xi) * 8 * 1.2 / (3.1415 ** 2) / (self.d ** 4)
+
 
 # 测试
 '''
@@ -107,18 +133,17 @@ print(d2.d)
 d5 = Duct(1547, 0, 2, a=0.5, s_print=True)
 '''
 
-theta0 = 0  # 阀门全开
 # 送风管段
-duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23 + vav1.theta2s(theta0))
-duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav2.theta2s(theta0))
+duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23, damper=vav1)
+duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9, damper=vav2)
 duct_12 = Duct(1547 + 1140, 7.5, 0.05+0.1, a=0.5)
-duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9 + vav3.theta2s(theta0))
+duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9, damper=vav3)
 duct_123 = Duct(1547 + 1140 + 1872, 4.3, 3.6+0.23, a=0.5)
 # 回风管段
 duct_return_air = Duct(4342, 1.75, 0.5+0.24, a=0.6)
-duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05+exhaust_air_damper.theta2s(theta0), a=0.6)
-duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4+fresh_air_damper.theta2s(theta0), a=0.6)
-duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5+mix_air_damper.theta2s(theta0), a=0.6)
+duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05, damper=exhaust_air_damper, a=0.6)
+duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4, damper=fresh_air_damper, a=0.6)
+duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5, damper=mix_air_damper, a=0.6)
 
 
 # 水泵 风机
@@ -175,6 +200,10 @@ class Fan(object):
         self.dim1 = dim1
         self.dim2 = dim2
         self.ideal = ideal
+        self.g = 0
+        self.p = 0
+        self.inv = 50
+
 
         # 对不同频率下的风量和压力拟合，求出曲线的系数
         if ideal:
@@ -206,7 +235,7 @@ class Fan(object):
         plt.show()
 
     # 预测(应用)
-    def p(self, g0, inv0):
+    def predict(self, g0, inv0):
         g0 = np.array(g0, dtype=float)
         inv0 = np.array(inv0, dtype=float)
 
@@ -215,6 +244,7 @@ class Fan(object):
         g_mat = np.mat([np.power(g0, i) for i in range(self.dim1 + 1)])
 
         return np.array(k1_prediction * g_mat.T).flatten()
+
 
 # 测试
 g = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
@@ -232,75 +262,160 @@ print(f.k1)
 print(f.k1_prediction)
 print(f.prediction)
 f.plot()
-print(f.p(600, 40))
+print(f.predict(600, 40))
 f3 = Fan(g, p[0], ideal=True)
 f3.plot()
 '''
 # 送回风机
 g1 = list(map(lambda x: x * 4342 / 1200, g))
-p1 = [[x * 35 / 216 for x in pi] for pi in p]
+p1 = [[x * 70 / 216 for x in pi] for pi in p]
 f1 = Fan(g1, p1)
 g2 = list(map(lambda x: x * 4342 / 1200, g))
-p2 = [[x * 270 / 216 for x in pi] for pi in p]
+p2 = [[x * 320 / 216 for x in pi] for pi in p]
 f2 = Fan(g2, p2)
 # f1.plot()
 
 
-# 排风新风混风段 及 整个风管系统的物理模型
-class SupplyAirDuct(object):
-    '''送风管路'''
-    def __init__(self, duct1, duct2, duct3, duct12, duct123):
-        self.duct1 = duct1
-        self.duct2 = duct2
-        self.duct3 = duct3
-        self.duct12 = duct12
-        self.duct123 = duct123
-
+# 风管的树结构
+class Branch(object):
+    # 支管
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
         self.g = 0
         self.p = 0
+        self.s = 0
 
-'''
-    def parallel(a, b):
-        return a * b / (a ** 0.5 + b ** 0.5) ** 2
+        # 空枝
+        if 'root' not in dir(self):
+            self.root = None
 
-    print(b(7 + b(212, 128), 77) + 19.7)
-'''
+        # 计算s
+        self.s_cal()
 
-class duct_system(object):
-    def __init__(self, terminal, ):
-        pass
+    def s_cal(self):
+        if self.left and self.right:
+            self.left.s_cal()
+            self.right.s_cal()
+            if self.root == 'serial':
+                self.s = self.left.s + self.right.s
+            elif self.root == 'parallel':
+                self.s = self.left.s * self.right.s / (self.left.s ** 0.5 + self.right.s ** 0.5) ** 2
+            else:
+                raise ValueError
 
 
+    def g_cal(self, g):
+        self.g = g
+        self.p = self.s * self.g ** 2
+        if self.root == 'serial':
+            self.left.g_cal(self.g)
+            self.right.g_cal(self.g)
+        elif self.root == 'parallel':
+            self.left.g_cal(self.g * (self.s / self.left.s) ** 0.5)
+            self.right.g_cal(self.g * (self.s / self.right.s) ** 0.5)
 
-x = np.linspace(0, 5000)
+
+class Parallel(Branch):
+    # 并联节点
+    def __init__(self, left, right):
+        self.root = 'parallel'
+        super().__init__(left, right)
 
 
-def f(x):
-    x1 = float(x[0])
-    x2 = float(x[1])
-    x3 = float(x[2])
-    return np.array([
-        f1.p(x1, 50) - 3.2 * (x1/3600) ** 2 - 20.6 * ((x1 - x3)/3600) ** 2,
-        f2.p(x2, 50) - 34.6 * (x2/3600) ** 2 - 10.6 * ((x2 - x3)/3600) ** 2 - 200,
-        f1.p(x1, 50) - 3.2 * (x1/3600) ** 2 - 9.1 * (x3/3600) ** 2 - 34.6 * (x2/3600) ** 2 + f2.p(x2, 50) - 200
-    ]).flatten()
+class Serial(Branch):
+    # 串联节点
+    def __init__(self, left, right):
+        self.root = 'serial'
+        super().__init__(left, right)
 
-result = fsolve(f, np.array([1, 1, 1]))
+# 送风管
+duct_supply_air = Serial(duct_123, Parallel(duct_3, Serial(duct_12, Parallel(duct_1, duct_2))))
+#print(duct_supply_air.s)
+duct_supply_air.g_cal(4342)
+#print(duct_1.g, duct_2.g, duct_3.g)
 
-#print(result)
-#print(f(result))
 
-# check
-g1 = result[0]
-g2 = result[1]
-p1 = (f1.p(g1, 50))
-p2 = (f2.p(g2, 50))
-ub = p1 - 3.2 * (g1/3600) ** 2
-ua = p2 - 34.6 * (g2/3600) ** 2 - 200
-g31 = g1/3600 - (ub/20.6) ** 0.5
-g32 = g2/3600 - (ua/10.6) ** 0.5
-g33 = ((ub + ua)/9.1) ** 0.5  # 是加不是减
+# 排风新风混风段 及 整个风管系统的物理模型
+class DuctSystem(object):
+    def __init__(self, duct_supply_air, duct_return_air, duct_exhaust_air, duct_fresh_air,
+                 duct_mix_air, fan_s, fan_r, dp_ahu=200):
+        self.duct_supply_air = duct_supply_air
+        if isinstance(duct_return_air, Duct):
+            self.duct_return_air = duct_return_air
+        else:
+            raise TypeError
+        self.duct_exhaust_air = duct_exhaust_air
+        self.duct_fresh_air = duct_fresh_air
+        self.duct_mix_air = duct_mix_air
+        if isinstance(fan_s, Fan):
+            self.fan_s = fan_s
+        else:
+            raise TypeError
+        self.fan_r = fan_r
+        self.dp_ahu = dp_ahu
 
-# print(g1/3600, g2/3600, p1, p2, ub, -ua, g31*3600, g32*3600, g33*3600)
+        self.g_return_air = 0
+        self.g_supply_air = 0
+        self.g_mix_air = 0
+
+    def balance(self):
+        print(self.duct_return_air.s, self.duct_exhaust_air.s, self.duct_supply_air.s, self.duct_fresh_air.s, self.duct_mix_air.s)
+        print(self.fan_r.predict(4000, self.fan_r.inv), self.fan_s.predict(4000, self.fan_s.inv))
+        def f(x):
+            x1 = float(x[0])
+            x2 = float(x[1])
+            x3 = float(x[2])
+            return np.array([
+                self.fan_r.predict(x1, self.fan_r.inv) - self.duct_return_air.s * (x1 / 3600) ** 2 -
+                self.duct_exhaust_air.s * ((x1 - x3) / 3600) ** 2,
+                self.fan_s.predict(x2, self.fan_s.inv) - self.duct_supply_air.s * (x2 / 3600) ** 2 -
+                self.duct_fresh_air.s * ((x2 - x3) / 3600) ** 2 - self.dp_ahu,
+                self.fan_r.predict(x1, self.fan_r.inv) - self.duct_return_air.s * (x1 / 3600) ** 2 -
+                self.duct_mix_air.s * (x3 / 3600) ** 2 - self.duct_supply_air.s * (x2 / 3600) ** 2 +
+                self.fan_s.predict(x2, self.fan_s.inv) - self.dp_ahu
+            ]).flatten()
+
+        [self.g_return_air, self.g_supply_air, self.g_mix_air] = fsolve(f, np.array([1, 1, 1]))
+        print(self.g_return_air, self.g_supply_air, self.g_mix_air)
+
+    def balance_check(self):
+        g1 = self.g_return_air
+        g2 = self.g_supply_air
+        p1 = self.fan_r.predict(g1, self.fan_r.inv)
+        p2 = self.fan_s.predict(g2, self.fan_s.inv)
+        ub = p1 - self.duct_return_air.s * (g1 / 3600) ** 2
+        ua = p2 - self.duct_supply_air.s * (g2 / 3600) ** 2 - self.dp_ahu
+        g31 = g1 / 3600 - (ub / self.duct_exhaust_air.s) ** 0.5
+        g32 = g2 / 3600 - (ua / self.duct_fresh_air.s) ** 0.5
+        g33 = ((ub + ua)/self.duct_mix_air.s) ** 0.5
+
+        print(g1/3600, g2/3600, p1, p2, ub, ua, g31*3600, g32*3600, g33*3600)
+
+duct_system = DuctSystem(duct_supply_air, duct_return_air, duct_exhaust_air, duct_fresh_air, duct_mix_air, f2, f1)
+f1.inv = f2.inv = 40
+duct_system.balance()
+duct_system.balance_check()
+print(duct_supply_air.s)
+
+f1.inv = 25
+f2.inv = 50
+vav1.theta_run(40)
+vav2.theta_run(40)
+vav3.theta_run(40)
+fresh_air_damper.theta_run(30)
+mix_air_damper.theta_run(5)
+exhaust_air_damper.theta_run(35)
+duct_1.s_cal()
+duct_2.s_cal()
+duct_3.s_cal()
+duct_fresh_air.s_cal()
+duct_mix_air.s_cal()
+duct_exhaust_air.s_cal()
+duct_supply_air.s_cal()
+print(duct_supply_air.s)
+duct_system.balance()
+duct_system.balance_check()
+
 
 
