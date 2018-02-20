@@ -45,9 +45,7 @@ class Damper(object):
 # 测试
 '''
 vav1 = Damper(0.4)
-# vav1.plot()
-print(vav1.theta2para(30))
-print(vav1.theta2s(30))
+vav1.plot()
 '''
 # 三个房间的VAV风阀 和 空调箱的三个风阀
 vav1 = Damper(0.35)
@@ -271,10 +269,10 @@ f3.plot()
 '''
 # 送回风机
 g1 = list(map(lambda x: x * 4342 / 1200, g))
-p1 = [[x * 70 / 216 for x in pi] for pi in p]
+p1 = [[x * 35 / 216 for x in pi] for pi in p]
 f1 = Fan(g1, p1)  # 回风机
 g2 = list(map(lambda x: x * 4342 / 1200, g))
-p2 = [[x * 320 / 216 for x in pi] for pi in p]
+p2 = [[x * 350 / 216 for x in pi] for pi in p]
 f2 = Fan(g2, p2)  # 送风机
 # f1.plot()
 
@@ -334,10 +332,11 @@ class Serial(Branch):
 
 # 送风管
 duct_supply_air = Serial(duct_123, Parallel(duct_3, Serial(duct_12, Parallel(duct_1, duct_2))))
-# print(duct_supply_air.s)
-# duct_supply_air.g_cal(4342)
-# print(duct_1.g, duct_2.g, duct_3.g)
-
+'''
+print(duct_supply_air.s)
+duct_supply_air.g_cal(4342)
+print(duct_1.g, duct_2.g, duct_3.g)
+'''
 
 # 排风新风混风段 及 整个风管系统的物理模型
 class DuctSystem(object):
@@ -401,49 +400,35 @@ class DuctSystem(object):
 
         print(g1/3600, g2/3600, p1, p2, ub, ua, g31*3600, g32*3600, g33*3600)
 
+
+def all_balanced(inv_f_r, inv_f_s, v1, v2, v3, ve, vm, vf):
+    f1.inv = inv_f_r
+    f2.inv = inv_f_s
+    vav1.theta_run(v1)
+    vav2.theta_run(v2)
+    vav3.theta_run(v3)
+    exhaust_air_damper.theta_run(ve)
+    mix_air_damper.theta_run(vm)
+    fresh_air_damper.theta_run(vf)
+    duct_1.s_cal()
+    duct_2.s_cal()
+    duct_3.s_cal()
+    duct_fresh_air.s_cal()
+    duct_return_air.s_cal()
+    duct_mix_air.s_cal()
+    duct_exhaust_air.s_cal()
+    duct_supply_air.s_cal()
+    duct_system.balance()
+    duct_system.balance_check()
+    duct_supply_air.g_cal(duct_system.g_supply_air)
+    print(duct_1.g, duct_2.g, duct_3.g)
+
+
 # 风管系统
 duct_system = DuctSystem(duct_supply_air, duct_return_air, duct_exhaust_air, duct_fresh_air, duct_mix_air, f2, f1)
-f1.inv = f2.inv = 40
-duct_system.balance()
-duct_system.balance_check()
-print(duct_supply_air.s)
+all_balanced(50, 50, 0, 0, 0, 0, 0, 0)
+all_balanced(25, 50, 40, 40, 40, 35, 5, 30)
+all_balanced(25, 50, 50, 40, 50, 35, 5, 30)
+all_balanced(45, 50, 20, 40, 20, 35, 5, 30)
 
-f1.inv = 25
-f2.inv = 50
-vav1.theta_run(40)
-vav2.theta_run(40)
-vav3.theta_run(40)
-fresh_air_damper.theta_run(30)
-mix_air_damper.theta_run(5)
-exhaust_air_damper.theta_run(35)
-duct_1.s_cal()
-duct_2.s_cal()
-duct_3.s_cal()
-duct_fresh_air.s_cal()
-duct_mix_air.s_cal()
-duct_exhaust_air.s_cal()
-duct_supply_air.s_cal()
-duct_system.balance()
-duct_system.balance_check()
-print(duct_supply_air.s)
-duct_supply_air.g_cal(duct_system.g_supply_air)
-print(duct_1.g, duct_2.g, duct_3.g)
-
-vav1.theta_run(50)
-vav2.theta_run(40)
-vav3.theta_run(50)
-fresh_air_damper.theta_run(30)
-mix_air_damper.theta_run(5)
-exhaust_air_damper.theta_run(35)
-duct_1.s_cal()
-duct_2.s_cal()
-duct_3.s_cal()
-duct_fresh_air.s_cal()
-duct_mix_air.s_cal()
-duct_exhaust_air.s_cal()
-duct_supply_air.s_cal()
-duct_system.balance()
-duct_system.balance_check()
-duct_supply_air.g_cal(duct_system.g_supply_air)
-print(duct_1.g, duct_2.g, duct_3.g)
 
