@@ -25,7 +25,7 @@ class Damper(object):
     def plot(self):
         # 绘图 阀门特性曲线
         theta00 = self.theta
-        x = np.linspace(0.01, 89.9)
+        x = np.linspace(1, 80)
         l = []
         zeta = []
         s = []
@@ -34,9 +34,17 @@ class Damper(object):
             l.append(self.l)
             zeta.append(self.zeta)
             s.append(self.s)
-        plt.plot(x, np.array(l) * 100, label=u"l/l_max")
-        plt.plot(x, np.log(zeta), label=u'ln(zeta)')
-        plt.plot(x, np.log(s), label=u'ln(s)')
+        #plt.plot(x, np.array(l) * 100, label=u"l/l_max")
+        plt.plot(x, np.log10(zeta), label=u'ln(zeta)')
+        plt.plot(x, np.log10([z+0.4 for z in zeta]), label=u'ln(zeta+)')
+        x0 = [0, 10, 20, 30, 40, 50, 60, 70]
+        y1 = [0.5, 0.65, 1.6, 4, 9.4, 24, 67]
+        y2 = [0.52, 0.9, 1.6, 2.4, 5.2, 9.7]
+        y3 = [0.24, 0.52, 1.54, 3.91, 10.8, 30.6, 188, 751]
+        plt.plot(x0[:-1], np.log10(y1), label='ln(1)')
+        plt.plot(x0[:-2], np.log10(y2), label='ln(2)')
+        plt.plot(x0, np.log10(y3), label='ln(3)')
+        #plt.plot(x, np.log(s), label=u'ln(s)')
         plt.legend()
         plt.grid(True)
         plt.show()
@@ -260,12 +268,30 @@ p.append([179, 129, 79, 24])
 '''
 f = Fan(g, p)
 print(f.k1)
+a = [x[0]/100 for x in f.k1]
+b = [x[1]*10 for x in f.k1]
+c = [x[2]*10000 for x in f.k1]
+d = [x[3]*10000000 for x in f.k1]
+ap = [x[0]/100 for x in f.k1_prediction]
+bp = [x[1]*10 for x in f.k1_prediction]
+cp = [x[2]*10000 for x in f.k1_prediction]
+dp = [x[3]*10000000 for x in f.k1_prediction]
+plt.scatter([50, 45, 40, 35, 30, 25, 20, 15], a, label='a')
+#plt.plot([50, 45, 40, 35, 30, 25, 20, 15], ap)
+plt.scatter([50, 45, 40, 35, 30, 25, 20, 15], b, label='b')
+#plt.plot([50, 45, 40, 35, 30, 25, 20, 15], bp)
+plt.scatter([50, 45, 40, 35, 30, 25, 20, 15], c, label='c')
+#plt.plot([50, 45, 40, 35, 30, 25, 20, 15], cp)
+plt.scatter([50, 45, 40, 35, 30, 25, 20, 15], d, label='d')
+#plt.plot([50, 45, 40, 35, 30, 25, 20, 15], dp)
+plt.legend()
+plt.show()
 print(f.k1_prediction)
 print(f.prediction)
-f.plot()
+#f.plot()
 print(f.predict(600, 40))
 f3 = Fan(g, p[0], ideal=True)
-f3.plot()
+#f3.plot()
 '''
 # 送回风机
 g1 = list(map(lambda x: x * 4342 / 1200, g))
@@ -382,7 +408,7 @@ class DuctSystem(object):
                 self.fan_s.predict(x2, self.fan_s.inv) - self.dp_ahu
             ]).flatten()
 
-        [self.g_return_air, self.g_supply_air, self.g_mix_air] = fsolve(f, np.array([1, 1, 1]))
+        [self.g_return_air, self.g_supply_air, self.g_mix_air] = fsolve(f, np.array([3600, 3600, 3600]))
         print(self.g_return_air, self.g_supply_air, self.g_mix_air)
 
     def balance_check(self):
@@ -426,9 +452,10 @@ def all_balanced(inv_f_r, inv_f_s, v1, v2, v3, ve, vm, vf):
 
 # 风管系统
 duct_system = DuctSystem(duct_supply_air, duct_return_air, duct_exhaust_air, duct_fresh_air, duct_mix_air, f2, f1)
-all_balanced(50, 50, 0, 0, 0, 0, 0, 0)
-all_balanced(25, 50, 40, 40, 40, 35, 5, 30)
-all_balanced(25, 50, 50, 40, 50, 35, 5, 30)
-all_balanced(45, 50, 20, 40, 20, 35, 5, 30)
+all_balanced(50, 50, 0, 0, 0, 75, 0, 70)
+all_balanced(13, 20, 10, 10, 10, 10, 10, 10)
+#all_balanced(25, 50, 40, 40, 40, 35, 5, 30)
+#all_balanced(25, 50, 50, 40, 50, 35, 5, 30)
+#all_balanced(45, 50, 20, 40, 20, 35, 5, 30)
 
 
