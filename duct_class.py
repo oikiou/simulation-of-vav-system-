@@ -55,13 +55,6 @@ class Damper(object):
 vav1 = Damper(0.4)
 vav1.plot()
 '''
-# 三个房间的VAV风阀 和 空调箱的三个风阀
-vav1 = Damper(0.35)
-vav2 = Damper(0.3)
-vav3 = Damper(0.4)
-fresh_air_damper = Damper(0.6)
-exhaust_air_damper = Damper(0.6)
-mix_air_damper = Damper(0.6)
 
 
 # 风管类
@@ -141,18 +134,6 @@ d2 = Duct(1547, 0, 2)
 print(d2.d)
 d5 = Duct(1547, 0, 2, a=0.5, s_print=True)
 '''
-
-# 送风管段
-duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23, damper=vav1)
-duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9, damper=vav2)
-duct_12 = Duct(1547 + 1140, 7.5, 0.05+0.1, a=0.5)
-duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9, damper=vav3)
-duct_123 = Duct(1547 + 1140 + 1872, 4.3, 3.6+0.23, a=0.5)
-# 回风管段
-duct_return_air = Duct(4342, 1.75, 0.5+0.24, a=0.6)
-duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05, damper=exhaust_air_damper, a=0.6)
-duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4, damper=fresh_air_damper, a=0.6)
-duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5, damper=mix_air_damper, a=0.6)
 
 
 # 水泵 风机
@@ -256,6 +237,7 @@ class Fan(object):
 
 
 # 测试
+'''
 g = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
 p = [[443, 383, 348, 305, 277, 249, 216, 172, 112, 30]]
 p.append([355, 296, 256, 238, 207, 182, 148, 97, 21])
@@ -265,7 +247,7 @@ p.append([320, 264, 223, 189, 153, 109, 50])
 p.append([300, 239, 194, 153, 110, 55])
 p.append([260, 200, 152, 107, 52])
 p.append([179, 129, 79, 24])
-'''
+
 f = Fan(g, p)
 print(f.k1)
 a = [x[0]/100 for x in f.k1]
@@ -293,14 +275,6 @@ print(f.predict(600, 40))
 f3 = Fan(g, p[0], ideal=True)
 #f3.plot()
 '''
-# 送回风机
-g1 = list(map(lambda x: x * 4342 / 1200, g))
-p1 = [[x * 35 / 216 for x in pi] for pi in p]
-f1 = Fan(g1, p1)  # 回风机
-g2 = list(map(lambda x: x * 4342 / 1200, g))
-p2 = [[x * 350 / 216 for x in pi] for pi in p]
-f2 = Fan(g2, p2)  # 送风机
-# f1.plot()
 
 
 # 风管的树结构
@@ -356,13 +330,12 @@ class Serial(Branch):
         self.root = 'serial'
         super().__init__(left, right)
 
-# 送风管
-duct_supply_air = Serial(duct_123, Parallel(duct_3, Serial(duct_12, Parallel(duct_1, duct_2))))
 '''
 print(duct_supply_air.s)
 duct_supply_air.g_cal(4342)
 print(duct_1.g, duct_2.g, duct_3.g)
 '''
+
 
 # 排风新风混风段 及 整个风管系统的物理模型
 class DuctSystem(object):
@@ -390,8 +363,8 @@ class DuctSystem(object):
 
     def balance(self):
         # 管路平衡计算
-        print(self.duct_return_air.s, self.duct_exhaust_air.s, self.duct_supply_air.s, self.duct_fresh_air.s, self.duct_mix_air.s)
-        print(self.fan_r.predict(4000, self.fan_r.inv), self.fan_s.predict(4000, self.fan_s.inv))
+        #print(self.duct_return_air.s, self.duct_exhaust_air.s, self.duct_supply_air.s, self.duct_fresh_air.s, self.duct_mix_air.s)
+        #print(self.fan_r.predict(4000, self.fan_r.inv), self.fan_s.predict(4000, self.fan_s.inv))
 
         # 用于scipy.optimize.fsolve解方程
         def f(x):
@@ -409,7 +382,7 @@ class DuctSystem(object):
             ]).flatten()
 
         [self.g_return_air, self.g_supply_air, self.g_mix_air] = fsolve(f, np.array([3600, 3600, 3600]))
-        print(self.g_return_air, self.g_supply_air, self.g_mix_air)
+        #print(self.g_return_air, self.g_supply_air, self.g_mix_air)
 
     def balance_check(self):
         # 检查方程的解
@@ -424,9 +397,54 @@ class DuctSystem(object):
         g33 = ((ub - ua)/self.duct_mix_air.s) ** 0.5
         # 检查气流方向是否正确 ua<0, ub>0
 
-        print(g1/3600, g2/3600, p1, p2, ub, ua, g31*3600, g32*3600, g33*3600)
+        #print(g1/3600, g2/3600, p1, p2, ub, ua, g31*3600, g32*3600, g33*3600)
+
+'''
+# 测试
+# 三个房间的VAV风阀 和 空调箱的三个风阀
+vav1 = Damper(0.35)
+vav2 = Damper(0.3)
+vav3 = Damper(0.4)
+fresh_air_damper = Damper(0.6)
+exhaust_air_damper = Damper(0.6)
+mix_air_damper = Damper(0.6)
+
+# 送风管段
+duct_1 = Duct(1547, 10, 0.05+0.1+0.23+0.4+0.9+1.2+0.23, damper=vav1)
+duct_2 = Duct(1140, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9, damper=vav2)
+duct_12 = Duct(1547 + 1140, 7.5, 0.05+0.1, a=0.5)
+duct_3 = Duct(1872, 2.5, 0.3+0.1+0.4+0.23+1.2+0.9, damper=vav3)
+duct_123 = Duct(1547 + 1140 + 1872, 4.3, 3.6+0.23, a=0.5)
+# 回风管段
+duct_return_air = Duct(4342, 1.75, 0.5+0.24, a=0.6)
+duct_exhaust_air = Duct(4342, 0.95, 3.7+0.9+0.4+0.05, damper=exhaust_air_damper, a=0.6)
+duct_fresh_air = Duct(4342, 0.78, 1.4+0.1+0.4, damper=fresh_air_damper, a=0.6)
+duct_mix_air = Duct(4342, 2.2, 0.3+0.4+1.5, damper=mix_air_damper, a=0.6)
+
+# 风机
+g = [0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]
+p = [[443, 383, 348, 305, 277, 249, 216, 172, 112, 30]]
+p.append([355, 296, 256, 238, 207, 182, 148, 97, 21])
+p.append([342, 284, 246, 217, 190, 161, 121, 62])
+p.append([336, 278, 236, 206, 178, 145, 97, 38])
+p.append([320, 264, 223, 189, 153, 109, 50])
+p.append([300, 239, 194, 153, 110, 55])
+p.append([260, 200, 152, 107, 52])
+p.append([179, 129, 79, 24])
+# 送回风机
+g1 = list(map(lambda x: x * 4342 / 1200, g))
+p1 = [[x * 35 / 216 for x in pi] for pi in p]
+f1 = Fan(g1, p1)  # 回风机
+g2 = list(map(lambda x: x * 4342 / 1200, g))
+p2 = [[x * 350 / 216 for x in pi] for pi in p]
+f2 = Fan(g2, p2)  # 送风机
+# f1.plot()
+
+# 送风管
+duct_supply_air = Serial(duct_123, Parallel(duct_3, Serial(duct_12, Parallel(duct_1, duct_2))))
 
 
+# 整合
 def all_balanced(inv_f_r, inv_f_s, v1, v2, v3, ve, vm, vf):
     f1.inv = inv_f_r
     f2.inv = inv_f_s
@@ -449,13 +467,13 @@ def all_balanced(inv_f_r, inv_f_s, v1, v2, v3, ve, vm, vf):
     duct_supply_air.g_cal(duct_system.g_supply_air)
     print(duct_1.g, duct_2.g, duct_3.g)
 
-
 # 风管系统
 duct_system = DuctSystem(duct_supply_air, duct_return_air, duct_exhaust_air, duct_fresh_air, duct_mix_air, f2, f1)
 all_balanced(50, 50, 0, 0, 0, 75, 0, 70)
-all_balanced(13, 20, 10, 10, 10, 10, 10, 10)
-#all_balanced(25, 50, 40, 40, 40, 35, 5, 30)
-#all_balanced(25, 50, 50, 40, 50, 35, 5, 30)
-#all_balanced(45, 50, 20, 40, 20, 35, 5, 30)
+all_balanced(11, 15, 0, 0, 0, 0, 88, 0)
+'''
+
+
+
 
 
